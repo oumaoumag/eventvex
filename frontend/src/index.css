@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Light theme */
+:root {
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f9fafb;
+  --color-text-primary: #1f2937;
+  --color-text-secondary: #4b5563;
+  --color-accent: #7c3aed;
+  --color-accent-hover: #6d28d9;
+  --color-border: #e5e7eb;
+  --color-card: #ffffff;
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Dark theme */
+.dark {
+  --color-bg-primary: #111827;
+  --color-bg-secondary: #1f2937;
+  --color-text-primary: #f9fafb;
+  --color-text-secondary: #d1d5db;
+  --color-accent: #8b5cf6;
+  --color-accent-hover: #7c3aed;
+  --color-border: #374151;
+  --color-card: #1f2937;
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+}
+
+/* Base styles */
+body {
+  @apply transition-colors duration-200;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+/* Theme utility classes */
+.bg-primary {
+  background-color: var(--color-bg-primary);
+}
+
+.bg-secondary {
+  background-color: var(--color-bg-secondary);
+}
+
+.text-primary {
+  color: var(--color-text-primary);
+}
+
+.text-secondary {
+  color: var(--color-text-secondary);
+}
+
+.border-primary {
+  border-color: var(--color-border);
+}
+
+.bg-card {
+  background-color: var(--color-card);
+  box-shadow: var(--shadow);
+}
+
+/* Smooth transitions */
+.transition-theme {
+  @apply transition-colors duration-200;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-accent);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent-hover);
+}
