@@ -6,6 +6,7 @@ import path from "path";
 // NETLIFY env var is automatically set in Netlify deployment environment
 const isNetlify = process.env.NETLIFY === 'true';
 
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -17,5 +18,12 @@ export default defineConfig({
     include: ['@chakra-ui/react'],
   },
   // Use root path for Netlify, and /eventvex for GitHub Pages
-  base: isNetlify ? '/' : '/eventvex',
+  base: isNetlify ? '/' : '/',
+  // Development server configuration
+  server: {
+    port: 5173,
+    host: true,
+    // Ensure dev server serves at root path
+    base: '/',
+  },
 });
