@@ -8,7 +8,7 @@ import {
   ArrowRight,
   ShoppingCart,
   Clock,
-  BarChart,
+  Blend,
   RefreshCw,
   Shield
 } from 'lucide-react';
@@ -64,7 +64,6 @@ const TokenizedTicketing = () => {
             bg-clip-text text-transparent text-center sm:text-left">
             Tokenized Ticketing on Base
           </h2>
-          <p className="text-base sm:text-lg md:text-xl text-gray-400 text-center sm:text-left">Secure, transparent, and efficient event ticketing powered by blockchain</p>
         </div>
 
         <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 mb-12 sm:mb-16 md:mb-20">
@@ -76,13 +75,13 @@ const TokenizedTicketing = () => {
             },
             {
               icon: <RefreshCw />,
-              title: "Instant Transfers",
-              description: "Fast and secure transactions with Base network"
+              title: "Efficiency",
+              description: "Fast and secure transactions powered by Base"
             },
             {
-              icon: <BarChart />,
-              title: "Market Analytics",
-              description: "Real-time tracking of ticket sales and transfers"
+              icon: <Blend />,
+              title: "Transparent Marketplace",
+              description: "Tracking of ticket sales and transfers"
             }
           ].map((feature, index) => (
             <div
@@ -110,29 +109,6 @@ const TokenizedTicketing = () => {
 
         {/* Token Actions */}
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 mb-8">
-            <a href="/create" className="w-full sm:w-auto">
-              <button className="w-full sm:w-auto relative px-4 sm:px-6 py-3 rounded-xl overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600" />
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <span className="relative text-white font-medium">
-                  Create Event
-                </span>
-                <div className="absolute inset-0 shadow-lg shadow-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              </button>
-            </a>
-
-            <a href="/resell" className="w-full sm:w-auto">
-              <button className="w-full sm:w-auto relative px-4 sm:px-6 py-3 rounded-xl overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600" />
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <span className="relative text-white font-medium">
-                  Resell
-                </span>
-                <div className="absolute inset-0 shadow-lg shadow-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              </button>
-            </a>
-          </div>
 
           {/* Event Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
