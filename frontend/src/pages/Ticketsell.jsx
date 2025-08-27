@@ -48,11 +48,59 @@ const TokenizedTicketing = () => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showEventDetails, setShowEventDetails] = useState(false);
   const [locationError, setLocationError] = useState(null);
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
 
   useEffect(() => {
     setIsVisible(true);
     getUserLocation();
+    initializeMap();
   }, []);
+
+  // Initialize the map
+  const initializeMap = async () => {
+    if (typeof window !== 'undefined' && mapRef.current && !mapInstanceRef.current) {
+      // Dynamically import Leaflet to avoid SSR issues
+      const L = await import('leaflet');
+
+      // Fix for default markers
+      delete L.default.Icon.Default.prototype._getIconUrl;
+      L.default.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+      });
+
+      // Create map instance
+      const map = L.default.map(mapRef.current).setView(mapCenter, userLocation ? 6 : 4);
+
+      // Add OpenStreetMap tiles (free, no API key needed)
+      L.default.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 18,
+      }).addTo(map);
+
+      mapInstanceRef.current = map;
+
+      // Add markers after map is initialized
+      updateMapMarkers(L.default);
+    }
+  };
+
+  // Update map center when user location changes
+  useEffect(() => {
+    if (mapInstanceRef.current && userLocation) {
+      mapInstanceRef.current.setView(userLocation, 6);
+      setMapCenter(userLocation);
+    }
+  }, [userLocation]);
+
+  // Update markers when filtered events change
+  useEffect(() => {
+    if (mapInstanceRef.current) {
+      updateMapMarkers();
+    }
+  }, [filteredEvents, userLocation]);
 
   // Get user's current location
   const getUserLocation = () => {
@@ -288,20 +336,101 @@ const TokenizedTicketing = () => {
     setShowEventDetails(true);
   };
 
-  // Convert coordinates to map position
-  const getMapPosition = (coordinates) => {
-    // Simple projection for display purposes
-    const [lat, lng] = coordinates;
-    const x = ((lng + 180) / 360) * 100; // Convert longitude to percentage
-    const y = ((90 - lat) / 180) * 100;  // Convert latitude to percentage
-    return { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
+  // Update map markers
+  const updateMapMarkers = async (L) => {
+    if (!mapInstanceRef.current) return;
+
+    // Import Leaflet if not provided
+    if (!L) {
+      L = (await import('leaflet')).default;
+    }
+
+    // Clear existing markers
+    mapInstanceRef.current.eachLayer((layer) => {
+      if (layer instanceof L.Marker) {
+        mapInstanceRef.current.removeLayer(layer);
+      }
+    });
+
+    // Add user location marker
+    if (userLocation) {
+      const userIcon = L.divIcon({
+        html: `<div style="background-color: #3b82f6; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); animation: pulse 2s infinite;"></div>`,
+        className: 'user-marker',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
+      });
+
+      L.marker(userLocation, { icon: userIcon })
+        .addTo(mapInstanceRef.current)
+        .bindPopup(`
+          <div style="text-align: center;">
+            <div style="font-weight: bold; color: #3b82f6;">Your Location</div>
+            <div style="font-size: 12px; color: #666;">You are here</div>
+          </div>
+        `);
+    }
+
+    // Add event markers
+    filteredEvents.forEach((event) => {
+      const color = event.available > 0 ? '#10b981' : '#ef4444';
+      const eventIcon = L.divIcon({
+        html: `<div style="background-color: ${color}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+        className: 'event-marker',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+      });
+
+      const distanceText = userLocation ?
+        `<div style="display: flex; align-items: center; gap: 4px; margin: 4px 0;">
+          <span style="font-size: 12px;">📍</span>
+          <span style="font-size: 12px;">${getDistanceToEvent(event)?.toFixed(1)} km away</span>
+        </div>` : '';
+
+      L.marker(event.coordinates, { icon: eventIcon })
+        .addTo(mapInstanceRef.current)
+        .bindPopup(`
+          <div style="max-width: 250px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+              <h3 style="font-weight: bold; color: #1f2937; margin: 0; font-size: 14px;">${event.name}</h3>
+              <span style="background-color: #f3e8ff; color: #7c3aed; padding: 2px 6px; border-radius: 12px; font-size: 10px; margin-left: 8px;">
+                ${event.category}
+              </span>
+            </div>
+            <div style="margin-bottom: 12px;">
+              <div style="display: flex; align-items: center; gap: 4px; margin: 4px 0;">
+                <span style="font-size: 12px;">🕒</span>
+                <span style="font-size: 12px; color: #666;">${event.date}</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 4px; margin: 4px 0;">
+                <span style="font-size: 12px;">📍</span>
+                <span style="font-size: 12px; color: #666;">${event.location}</span>
+              </div>
+              ${distanceText}
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <span style="font-weight: bold; color: #7c3aed;">${event.price}</span>
+              <span style="font-size: 12px; color: ${event.available > 0 ? '#059669' : '#dc2626'};">
+                ${event.available > 0 ? `${event.available} available` : 'Sold Out'}
+              </span>
+            </div>
+            <a href="/ticket" style="display: block; text-decoration: none;">
+              <button style="width: 100%; padding: 8px 12px; background: linear-gradient(to right, #7c3aed, #3b82f6); color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer;">
+                View Details
+              </button>
+            </a>
+          </div>
+        `);
+    });
   };
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Add custom styles for map markers */}
+      {/* Add custom styles for map markers and Leaflet */}
       <style dangerouslySetInnerHTML={{
         __html: `
+          @import url('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
+
           @keyframes pulse {
             0% {
               transform: scale(1);
@@ -318,6 +447,20 @@ const TokenizedTicketing = () => {
           }
           .user-marker div {
             animation: pulse 2s infinite;
+          }
+
+          /* Custom map styling */
+          .leaflet-container {
+            background: #1e293b !important;
+          }
+
+          .leaflet-popup-content-wrapper {
+            border-radius: 8px !important;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3) !important;
+          }
+
+          .leaflet-popup-tip {
+            background: white !important;
           }
         `
       }} />
@@ -477,188 +620,28 @@ const TokenizedTicketing = () => {
         {/* Interactive Map */}
         <div className="max-w-7xl mx-auto">
           <div className="bg-black/40 backdrop-blur-xl rounded-xl border border-purple-500/30 overflow-hidden">
-            <div className="h-[600px] relative bg-gradient-to-br from-slate-800 to-slate-900">
-              {/* World Map Background */}
-              <div className="absolute inset-0 opacity-40">
-                <svg viewBox="0 0 1000 500" className="w-full h-full">
-                  {/* Grid lines for geographic reference */}
-                  <defs>
-                    <pattern id="grid" width="50" height="25" patternUnits="userSpaceOnUse">
-                      <path d="M 50 0 L 0 0 0 25" fill="none" stroke="rgba(139, 92, 246, 0.2)" strokeWidth="0.5"/>
-                    </pattern>
-                  </defs>
-                  <rect width="100%" height="100%" fill="url(#grid)" />
+            {/* Real Leaflet Map */}
+            <div
+              ref={mapRef}
+              className="h-[600px] w-full rounded-xl"
+              style={{ minHeight: '600px' }}
+            />
 
-                  {/* Continents - Simplified shapes */}
-                  {/* North America */}
-                  <path
-                    d="M100,150 Q150,120 200,140 L250,130 Q300,140 350,150 L400,140 Q450,130 500,140 L520,160 Q480,180 450,200 L400,190 Q350,200 300,190 L250,200 Q200,190 150,180 L120,170 Z"
-                    fill="rgba(139, 92, 246, 0.3)"
-                    stroke="rgba(139, 92, 246, 0.5)"
-                    strokeWidth="1"
-                  />
-
-                  {/* Europe */}
-                  <path
-                    d="M450,120 Q480,110 510,120 L540,115 Q570,120 600,125 L620,140 Q590,150 560,145 L530,150 Q500,145 470,140 L455,135 Z"
-                    fill="rgba(139, 92, 246, 0.3)"
-                    stroke="rgba(139, 92, 246, 0.5)"
-                    strokeWidth="1"
-                  />
-
-                  {/* Asia */}
-                  <path
-                    d="M600,100 Q650,90 700,100 L750,95 Q800,100 850,110 L880,130 Q850,150 800,145 L750,150 Q700,145 650,140 L620,135 Q610,125 600,120 Z"
-                    fill="rgba(139, 92, 246, 0.3)"
-                    stroke="rgba(139, 92, 246, 0.5)"
-                    strokeWidth="1"
-                  />
-
-                  {/* South America */}
-                  <path
-                    d="M250,250 Q280,240 310,250 L340,260 Q350,280 340,300 L320,320 Q300,340 280,360 L260,380 Q240,360 250,340 L245,320 Q240,300 245,280 L248,260 Z"
-                    fill="rgba(139, 92, 246, 0.3)"
-                    stroke="rgba(139, 92, 246, 0.5)"
-                    strokeWidth="1"
-                  />
-
-                  {/* Africa */}
-                  <path
-                    d="M480,200 Q510,190 540,200 L570,210 Q580,230 575,250 L570,270 Q565,290 560,310 L555,330 Q550,350 540,370 L520,380 Q500,370 485,350 L475,330 Q470,310 475,290 L480,270 Q485,250 480,230 L478,210 Z"
-                    fill="rgba(139, 92, 246, 0.3)"
-                    stroke="rgba(139, 92, 246, 0.5)"
-                    strokeWidth="1"
-                  />
-
-                  {/* Australia */}
-                  <path
-                    d="M750,320 Q780,310 810,320 L840,330 Q850,340 845,350 L830,360 Q810,365 790,360 L770,355 Q755,350 750,340 Z"
-                    fill="rgba(139, 92, 246, 0.3)"
-                    stroke="rgba(139, 92, 246, 0.5)"
-                    strokeWidth="1"
-                  />
-
-                  {/* Latitude lines */}
-                  <line x1="0" y1="125" x2="1000" y2="125" stroke="rgba(139, 92, 246, 0.2)" strokeWidth="1" strokeDasharray="5,5"/>
-                  <line x1="0" y1="250" x2="1000" y2="250" stroke="rgba(139, 92, 246, 0.3)" strokeWidth="1" strokeDasharray="5,5"/>
-                  <line x1="0" y1="375" x2="1000" y2="375" stroke="rgba(139, 92, 246, 0.2)" strokeWidth="1" strokeDasharray="5,5"/>
-
-                  {/* Longitude lines */}
-                  <line x1="250" y1="0" x2="250" y2="500" stroke="rgba(139, 92, 246, 0.2)" strokeWidth="1" strokeDasharray="5,5"/>
-                  <line x1="500" y1="0" x2="500" y2="500" stroke="rgba(139, 92, 246, 0.3)" strokeWidth="1" strokeDasharray="5,5"/>
-                  <line x1="750" y1="0" x2="750" y2="500" stroke="rgba(139, 92, 246, 0.2)" strokeWidth="1" strokeDasharray="5,5"/>
-                </svg>
-              </div>
-
-              {/* Map Labels */}
-              <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute top-16 left-32 text-purple-300 text-sm font-medium opacity-60">North America</div>
-                <div className="absolute top-12 left-1/2 text-purple-300 text-sm font-medium opacity-60">Europe</div>
-                <div className="absolute top-10 right-32 text-purple-300 text-sm font-medium opacity-60">Asia</div>
-                <div className="absolute bottom-32 left-72 text-purple-300 text-sm font-medium opacity-60">Africa</div>
-                <div className="absolute bottom-16 left-80 text-purple-300 text-sm font-medium opacity-60">South America</div>
-                <div className="absolute bottom-20 right-24 text-purple-300 text-sm font-medium opacity-60">Australia</div>
-              </div>
-
-              {/* User Location Marker */}
-              {userLocation && (
-                <div
-                  className="absolute transform -translate-x-1/2 -translate-y-1/2 z-20"
-                  style={{
-                    left: `${getMapPosition(userLocation).x}%`,
-                    top: `${getMapPosition(userLocation).y}%`
-                  }}
-                >
-                  <div className="relative">
-                    <div className="w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-lg animate-pulse"></div>
-                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                      You are here
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Event Markers */}
-              {filteredEvents.map((event) => {
-                const position = getMapPosition(event.coordinates);
-                return (
-                  <div
-                    key={event.id}
-                    className="absolute transform -translate-x-1/2 -translate-y-1/2 z-10 cursor-pointer group"
-                    style={{
-                      left: `${position.x}%`,
-                      top: `${position.y}%`
-                    }}
-                    onClick={() => handleEventClick(event)}
+            {/* No events message overlay */}
+            {filteredEvents.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl">
+                <div className="text-center">
+                  <div className="text-gray-400 text-lg mb-4">No events found matching your criteria</div>
+                  <button
+                    onClick={clearFilters}
+                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg
+                      hover:shadow-lg hover:shadow-purple-500/20 transition-all duration-300"
                   >
-                    <div className="relative">
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 border-white shadow-lg transition-all duration-300 group-hover:scale-125 ${
-                          event.available > 0 ? 'bg-green-500' : 'bg-red-500'
-                        }`}
-                      ></div>
-
-                      {/* Event Popup */}
-                      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-xl p-4 min-w-[280px] opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none group-hover:pointer-events-auto">
-                        <div className="flex justify-between items-start mb-2">
-                          <h3 className="font-semibold text-gray-800 text-sm">{event.name}</h3>
-                          <span className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
-                            {event.category}
-                          </span>
-                        </div>
-                        <div className="space-y-1 text-sm text-gray-600 mb-3">
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            <span>{event.date}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
-                            <span>{event.location}</span>
-                          </div>
-                          {userLocation && (
-                            <div className="flex items-center gap-1">
-                              <Navigation className="w-3 h-3" />
-                              <span>{getDistanceToEvent(event)?.toFixed(1)} km away</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex justify-between items-center mb-3">
-                          <span className="font-semibold text-purple-600">{event.price}</span>
-                          <span className={`text-sm ${event.available > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {event.available > 0 ? `${event.available} available` : 'Sold Out'}
-                          </span>
-                        </div>
-                        <a href='/ticket' className="block">
-                          <button className="w-full px-3 py-2 bg-gradient-to-r from-purple-600 to-blue-600
-                            text-white rounded-lg text-sm hover:shadow-lg transition-all duration-300">
-                            View Details
-                          </button>
-                        </a>
-
-                        {/* Arrow pointing to marker */}
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* No events message */}
-              {filteredEvents.length === 0 && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="text-gray-400 text-lg mb-4">No events found matching your criteria</div>
-                    <button
-                      onClick={clearFilters}
-                      className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg
-                        hover:shadow-lg hover:shadow-purple-500/20 transition-all duration-300"
-                    >
-                      Clear Filters
-                    </button>
-                  </div>
+                    Clear Filters
+                  </button>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Map Legend */}
