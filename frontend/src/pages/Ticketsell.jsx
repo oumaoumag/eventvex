@@ -60,30 +60,37 @@ const TokenizedTicketing = () => {
   // Initialize the map
   const initializeMap = async () => {
     if (typeof window !== 'undefined' && mapRef.current && !mapInstanceRef.current) {
-      // Dynamically import Leaflet to avoid SSR issues
-      const L = await import('leaflet');
+      try {
+        // Dynamically import Leaflet to avoid SSR issues
+        const L = await import('leaflet');
 
-      // Fix for default markers
-      delete L.default.Icon.Default.prototype._getIconUrl;
-      L.default.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-      });
+        // Fix for default markers
+        delete L.default.Icon.Default.prototype._getIconUrl;
+        L.default.Icon.Default.mergeOptions({
+          iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+          iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+        });
 
-      // Create map instance
-      const map = L.default.map(mapRef.current).setView(mapCenter, userLocation ? 6 : 4);
+        // Create map instance
+        const map = L.default.map(mapRef.current).setView(mapCenter, userLocation ? 6 : 4);
 
-      // Add OpenStreetMap tiles (free, no API key needed)
-      L.default.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 18,
-      }).addTo(map);
+        // Add OpenStreetMap tiles (free, no API key needed)
+        L.default.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          maxZoom: 18,
+        }).addTo(map);
 
-      mapInstanceRef.current = map;
+        mapInstanceRef.current = map;
 
-      // Add markers after map is initialized
-      updateMapMarkers(L.default);
+        // Wait for map to be ready, then add markers
+        setTimeout(() => {
+          updateMapMarkers(L.default);
+        }, 500);
+
+      } catch (error) {
+        console.error('Error initializing map:', error);
+      }
     }
   };
 
@@ -98,9 +105,20 @@ const TokenizedTicketing = () => {
   // Update markers when filtered events change
   useEffect(() => {
     if (mapInstanceRef.current) {
+      console.log('Triggering marker update due to filteredEvents/userLocation change');
       updateMapMarkers();
     }
   }, [filteredEvents, userLocation]);
+
+  // Force marker update when map is ready
+  useEffect(() => {
+    if (mapInstanceRef.current && filteredEvents.length > 0) {
+      console.log('Map ready, forcing marker update');
+      setTimeout(() => {
+        updateMapMarkers();
+      }, 1000);
+    }
+  }, [mapInstanceRef.current, filteredEvents]);
 
   // Get user's current location
   const getUserLocation = () => {
@@ -338,90 +356,125 @@ const TokenizedTicketing = () => {
 
   // Update map markers
   const updateMapMarkers = async (L) => {
-    if (!mapInstanceRef.current) return;
+    if (!mapInstanceRef.current) {
+      console.log('Map instance not ready');
+      return;
+    }
 
     // Import Leaflet if not provided
     if (!L) {
-      L = (await import('leaflet')).default;
+      try {
+        L = (await import('leaflet')).default;
+      } catch (error) {
+        console.error('Error importing Leaflet:', error);
+        return;
+      }
     }
 
-    // Clear existing markers
+    console.log('Updating markers. User location:', userLocation, 'Filtered events:', filteredEvents.length);
+
+    // Clear existing markers (but keep the tile layer)
     mapInstanceRef.current.eachLayer((layer) => {
-      if (layer instanceof L.Marker) {
-        mapInstanceRef.current.removeLayer(layer);
+      if (layer.options && layer.options.attribution) {
+        // This is the tile layer, keep it
+        return;
       }
+      // Remove all other layers (markers)
+      mapInstanceRef.current.removeLayer(layer);
     });
 
     // Add user location marker
-    if (userLocation) {
-      const userIcon = L.divIcon({
-        html: `<div style="background-color: #3b82f6; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); animation: pulse 2s infinite;"></div>`,
-        className: 'user-marker',
-        iconSize: [16, 16],
-        iconAnchor: [8, 8]
-      });
+    if (userLocation && userLocation.length === 2) {
+      console.log('Adding user location marker at:', userLocation);
+      try {
+        const userIcon = L.divIcon({
+          html: `<div style="background-color: #3b82f6; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+          className: 'user-marker',
+          iconSize: [22, 22],
+          iconAnchor: [11, 11]
+        });
 
-      L.marker(userLocation, { icon: userIcon })
-        .addTo(mapInstanceRef.current)
-        .bindPopup(`
-          <div style="text-align: center;">
-            <div style="font-weight: bold; color: #3b82f6;">Your Location</div>
-            <div style="font-size: 12px; color: #666;">You are here</div>
-          </div>
-        `);
+        const userMarker = L.marker(userLocation, { icon: userIcon })
+          .addTo(mapInstanceRef.current)
+          .bindPopup(`
+            <div style="text-align: center; padding: 8px;">
+              <div style="font-weight: bold; color: #3b82f6; margin-bottom: 4px;">Your Location</div>
+              <div style="font-size: 12px; color: #666;">You are here</div>
+            </div>
+          `);
+
+        console.log('User marker added successfully');
+      } catch (error) {
+        console.error('Error adding user marker:', error);
+      }
     }
 
     // Add event markers
-    filteredEvents.forEach((event) => {
-      const color = event.available > 0 ? '#10b981' : '#ef4444';
-      const eventIcon = L.divIcon({
-        html: `<div style="background-color: ${color}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
-        className: 'event-marker',
-        iconSize: [20, 20],
-        iconAnchor: [10, 10]
-      });
+    filteredEvents.forEach((event, index) => {
+      if (!event.coordinates || event.coordinates.length !== 2) {
+        console.warn('Invalid coordinates for event:', event.name, event.coordinates);
+        return;
+      }
 
-      const distanceText = userLocation ?
-        `<div style="display: flex; align-items: center; gap: 4px; margin: 4px 0;">
-          <span style="font-size: 12px;">📍</span>
-          <span style="font-size: 12px;">${getDistanceToEvent(event)?.toFixed(1)} km away</span>
-        </div>` : '';
+      console.log(`Adding event marker ${index + 1}:`, event.name, 'at', event.coordinates);
 
-      L.marker(event.coordinates, { icon: eventIcon })
-        .addTo(mapInstanceRef.current)
-        .bindPopup(`
-          <div style="max-width: 250px;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-              <h3 style="font-weight: bold; color: #1f2937; margin: 0; font-size: 14px;">${event.name}</h3>
-              <span style="background-color: #f3e8ff; color: #7c3aed; padding: 2px 6px; border-radius: 12px; font-size: 10px; margin-left: 8px;">
-                ${event.category}
-              </span>
-            </div>
-            <div style="margin-bottom: 12px;">
-              <div style="display: flex; align-items: center; gap: 4px; margin: 4px 0;">
-                <span style="font-size: 12px;">🕒</span>
-                <span style="font-size: 12px; color: #666;">${event.date}</span>
+      try {
+        const color = event.available > 0 ? '#10b981' : '#ef4444';
+        const eventIcon = L.divIcon({
+          html: `<div style="background-color: ${color}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+          className: 'event-marker',
+          iconSize: [24, 24],
+          iconAnchor: [12, 12]
+        });
+
+        const distanceText = userLocation ?
+          `<div style="display: flex; align-items: center; gap: 4px; margin: 4px 0;">
+            <span style="font-size: 12px;">📍</span>
+            <span style="font-size: 12px;">${getDistanceToEvent(event)?.toFixed(1)} km away</span>
+          </div>` : '';
+
+        const eventMarker = L.marker(event.coordinates, { icon: eventIcon })
+          .addTo(mapInstanceRef.current)
+          .bindPopup(`
+            <div style="max-width: 280px; padding: 4px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                <h3 style="font-weight: bold; color: #1f2937; margin: 0; font-size: 14px; flex: 1;">${event.name}</h3>
+                <span style="background-color: #f3e8ff; color: #7c3aed; padding: 2px 6px; border-radius: 12px; font-size: 10px; margin-left: 8px; white-space: nowrap;">
+                  ${event.category}
+                </span>
               </div>
-              <div style="display: flex; align-items: center; gap: 4px; margin: 4px 0;">
-                <span style="font-size: 12px;">📍</span>
-                <span style="font-size: 12px; color: #666;">${event.location}</span>
+              <div style="margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 4px; margin: 4px 0;">
+                  <span style="font-size: 12px;">🕒</span>
+                  <span style="font-size: 12px; color: #666;">${event.date}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 4px; margin: 4px 0;">
+                  <span style="font-size: 12px;">📍</span>
+                  <span style="font-size: 12px; color: #666;">${event.location}</span>
+                </div>
+                ${distanceText}
               </div>
-              ${distanceText}
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span style="font-weight: bold; color: #7c3aed;">${event.price}</span>
+                <span style="font-size: 12px; color: ${event.available > 0 ? '#059669' : '#dc2626'};">
+                  ${event.available > 0 ? `${event.available} available` : 'Sold Out'}
+                </span>
+              </div>
+              <a href="/ticket" style="display: block; text-decoration: none;">
+                <button style="width: 100%; padding: 8px 12px; background: linear-gradient(to right, #7c3aed, #3b82f6); color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.2s;">
+                  View Details
+                </button>
+              </a>
             </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-              <span style="font-weight: bold; color: #7c3aed;">${event.price}</span>
-              <span style="font-size: 12px; color: ${event.available > 0 ? '#059669' : '#dc2626'};">
-                ${event.available > 0 ? `${event.available} available` : 'Sold Out'}
-              </span>
-            </div>
-            <a href="/ticket" style="display: block; text-decoration: none;">
-              <button style="width: 100%; padding: 8px 12px; background: linear-gradient(to right, #7c3aed, #3b82f6); color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer;">
-                View Details
-              </button>
-            </a>
-          </div>
-        `);
+          `);
+
+        console.log(`Event marker ${index + 1} added successfully`);
+      } catch (error) {
+        console.error(`Error adding marker for event ${event.name}:`, error);
+      }
     });
+
+    console.log('Finished updating markers');
   };
 
   return (
@@ -644,13 +697,24 @@ const TokenizedTicketing = () => {
             )}
           </div>
 
-          {/* Map Legend */}
+          {/* Map Legend and Debug */}
           <div className="mt-6 bg-black/40 backdrop-blur-xl rounded-xl border border-purple-500/30 p-4">
-            <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-              <Eye className="w-5 h-5" />
-              Map Legend
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+            <div className="flex justify-between items-start mb-3">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Eye className="w-5 h-5" />
+                Map Legend
+              </h3>
+              <button
+                onClick={() => {
+                  console.log('Manual marker refresh triggered');
+                  updateMapMarkers();
+                }}
+                className="px-3 py-1 text-xs bg-purple-600/20 hover:bg-purple-600/30 rounded border border-purple-500/30 transition-all"
+              >
+                Refresh Markers
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm mb-3">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-blue-500 rounded-full border-2 border-white"></div>
                 <span>Your Location</span>
@@ -663,6 +727,10 @@ const TokenizedTicketing = () => {
                 <div className="w-4 h-4 bg-red-500 rounded-full border-2 border-white"></div>
                 <span>Sold Out Events</span>
               </div>
+            </div>
+            <div className="text-xs text-gray-400 border-t border-purple-500/20 pt-3">
+              Debug: {filteredEvents.length} events, User location: {userLocation ? 'Found' : 'Not found'}
+              {userLocation && ` (${userLocation[0].toFixed(4)}, ${userLocation[1].toFixed(4)})`}
             </div>
           </div>
         </div>
