@@ -55,12 +55,30 @@ const TokenizedTicketing = () => {
     setIsVisible(true);
     getUserLocation();
     initializeMap();
+
+    // Cleanup function to properly destroy map when component unmounts
+    return () => {
+      if (mapInstanceRef.current) {
+        console.log('Cleaning up map instance');
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
   }, []);
 
   // Initialize the map
   const initializeMap = async () => {
-    if (typeof window !== 'undefined' && mapRef.current && !mapInstanceRef.current) {
+    // Clean up any existing map instance first
+    if (mapInstanceRef.current) {
+      console.log('Cleaning up existing map instance before reinitializing');
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+    }
+
+    if (typeof window !== 'undefined' && mapRef.current) {
       try {
+        console.log('Initializing new map instance...');
+
         // Dynamically import Leaflet to avoid SSR issues
         const L = await import('leaflet');
 
@@ -82,15 +100,19 @@ const TokenizedTicketing = () => {
         }).addTo(map);
 
         mapInstanceRef.current = map;
+        console.log('Map instance created successfully');
 
         // Wait for map to be ready, then add markers
         setTimeout(() => {
+          console.log('Adding markers to newly initialized map');
           updateMapMarkers(L.default);
         }, 500);
 
       } catch (error) {
         console.error('Error initializing map:', error);
       }
+    } else {
+      console.log('Cannot initialize map: window or mapRef not available');
     }
   };
 
@@ -119,6 +141,49 @@ const TokenizedTicketing = () => {
       }, 1000);
     }
   }, [mapInstanceRef.current, filteredEvents]);
+
+  // Check if map needs reinitialization when component becomes visible
+  useEffect(() => {
+    const checkAndReinitializeMap = () => {
+      if (mapRef.current && !mapInstanceRef.current) {
+        console.log('Map container exists but map instance is missing, reinitializing...');
+        initializeMap();
+      }
+    };
+
+    // Check immediately
+    checkAndReinitializeMap();
+
+    // Also check after a short delay in case the DOM needs time to settle
+    const timeoutId = setTimeout(checkAndReinitializeMap, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [isVisible]);
+
+  // Add intersection observer to detect when map container becomes visible
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !mapInstanceRef.current) {
+            console.log('Map container became visible, reinitializing map...');
+            setTimeout(() => {
+              initializeMap();
+            }, 100);
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(mapRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
 
   // Get user's current location
   const getUserLocation = () => {
@@ -706,12 +771,18 @@ const TokenizedTicketing = () => {
               </h3>
               <button
                 onClick={() => {
-                  console.log('Manual marker refresh triggered');
-                  updateMapMarkers();
+                  console.log('Manual map refresh triggered');
+                  if (!mapInstanceRef.current) {
+                    console.log('Map instance missing, reinitializing...');
+                    initializeMap();
+                  } else {
+                    console.log('Map instance exists, updating markers...');
+                    updateMapMarkers();
+                  }
                 }}
                 className="px-3 py-1 text-xs bg-purple-600/20 hover:bg-purple-600/30 rounded border border-purple-500/30 transition-all"
               >
-                Refresh Markers
+                {mapInstanceRef.current ? 'Refresh Markers' : 'Reinit Map'}
               </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm mb-3">
