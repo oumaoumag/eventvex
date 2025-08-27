@@ -225,7 +225,20 @@ const TokenizedTicketing = () => {
       location: "San Francisco, CA",
       coordinates: [37.7749, -122.4194],
       description: "The premier blockchain conference featuring industry leaders",
-      image: "/src/assets/summit.png"
+      image: "/src/assets/summit.png",
+      tickets: {
+        original: [
+          { id: "orig-1-1", seatNumber: "A1", price: 0.5, available: true, type: "VIP" },
+          { id: "orig-1-2", seatNumber: "A2", price: 0.5, available: true, type: "VIP" },
+          { id: "orig-1-3", seatNumber: "B1", price: 0.3, available: true, type: "General" },
+          { id: "orig-1-4", seatNumber: "B2", price: 0.3, available: true, type: "General" },
+          { id: "orig-1-5", seatNumber: "C1", price: 0.2, available: true, type: "Standard" }
+        ],
+        resale: [
+          { id: "resale-1-1", seatNumber: "A3", originalPrice: 0.5, resalePrice: 0.7, seller: "0x1234...5678", type: "VIP" },
+          { id: "resale-1-2", seatNumber: "B3", originalPrice: 0.3, resalePrice: 0.4, seller: "0x8765...4321", type: "General" }
+        ]
+      }
     },
     {
       id: 2,
@@ -240,7 +253,20 @@ const TokenizedTicketing = () => {
       location: "Austin, TX",
       coordinates: [30.2672, -97.7431],
       description: "Revolutionary music festival powered by Web3 technology",
-      image: "/src/assets/dr.png"
+      image: "/src/assets/dr.png",
+      tickets: {
+        original: [
+          { id: "orig-2-1", seatNumber: "VIP-1", price: 1.2, available: true, type: "VIP" },
+          { id: "orig-2-2", seatNumber: "VIP-2", price: 1.2, available: true, type: "VIP" },
+          { id: "orig-2-3", seatNumber: "GA-1", price: 0.8, available: true, type: "General Admission" },
+          { id: "orig-2-4", seatNumber: "GA-2", price: 0.8, available: true, type: "General Admission" }
+        ],
+        resale: [
+          { id: "resale-2-1", seatNumber: "VIP-3", originalPrice: 1.2, resalePrice: 1.5, seller: "0x2468...1357", type: "VIP" },
+          { id: "resale-2-2", seatNumber: "GA-3", originalPrice: 0.8, resalePrice: 1.0, seller: "0x1357...2468", type: "General Admission" },
+          { id: "resale-2-3", seatNumber: "VIP-4", originalPrice: 1.2, resalePrice: 1.8, seller: "0x9876...5432", type: "VIP" }
+        ]
+      }
     },
     {
       id: 3,
@@ -257,6 +283,19 @@ const TokenizedTicketing = () => {
       description: "Exclusive showcase of digital art and NFT collections",
       image: "/src/assets/im.png",
       url: "/src/pages/qrcode",
+      tickets: {
+        original: [
+          { id: "orig-3-1", seatNumber: "Premium-1", price: 0.8, available: true, type: "Premium" },
+          { id: "orig-3-2", seatNumber: "Premium-2", price: 0.8, available: true, type: "Premium" },
+          { id: "orig-3-3", seatNumber: "Standard-1", price: 0.5, available: true, type: "Standard" },
+          { id: "orig-3-4", seatNumber: "Standard-2", price: 0.5, available: true, type: "Standard" },
+          { id: "orig-3-5", seatNumber: "Student-1", price: 0.3, available: true, type: "Student" }
+        ],
+        resale: [
+          { id: "resale-3-1", seatNumber: "Premium-3", originalPrice: 0.8, resalePrice: 1.0, seller: "0x3456...7890", type: "Premium" },
+          { id: "resale-3-2", seatNumber: "Standard-3", originalPrice: 0.5, resalePrice: 0.6, seller: "0x7890...3456", type: "Standard" }
+        ]
+      }
     },
     {
       id: 4,
@@ -271,7 +310,18 @@ const TokenizedTicketing = () => {
       location: "London, UK",
       coordinates: [51.5074, -0.1278],
       description: "Decentralized finance summit with top DeFi protocols",
-      image: "/src/assets/summit.png"
+      image: "/src/assets/summit.png",
+      tickets: {
+        original: [
+          { id: "orig-4-1", seatNumber: "Front-1", price: 0.3, available: true, type: "Front Row" },
+          { id: "orig-4-2", seatNumber: "Front-2", price: 0.3, available: true, type: "Front Row" },
+          { id: "orig-4-3", seatNumber: "Mid-1", price: 0.2, available: true, type: "Middle" },
+          { id: "orig-4-4", seatNumber: "Back-1", price: 0.1, available: true, type: "Back" }
+        ],
+        resale: [
+          { id: "resale-4-1", seatNumber: "Front-3", originalPrice: 0.3, resalePrice: 0.35, seller: "0x4567...8901", type: "Front Row" }
+        ]
+      }
     },
     {
       id: 5,
@@ -525,9 +575,9 @@ const TokenizedTicketing = () => {
                   ${event.available > 0 ? `${event.available} available` : 'Sold Out'}
                 </span>
               </div>
-              <a href="/ticket" style="display: block; text-decoration: none;">
+              <a href="/event/${event.id}/tickets" style="display: block; text-decoration: none;">
                 <button style="width: 100%; padding: 8px 12px; background: linear-gradient(to right, #7c3aed, #3b82f6); color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.2s;">
-                  View Details
+                  View Tickets
                 </button>
               </a>
             </div>
