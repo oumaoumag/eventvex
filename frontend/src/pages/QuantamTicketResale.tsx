@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from "react"
 import { ethers } from "ethers"
 import { Wallet, Loader2, AlertCircle, Tag } from "lucide-react"
+import { listTicketForResale, buyResaleTicket, getUserTickets } from '../utils/contractIntegration'
+import { connectWallet, checkWalletConnection } from '../utils/walletUtils'
 
 declare global {
   interface Window {
@@ -29,15 +31,7 @@ interface ResaleListing {
   price: bigint
 }
 
-const CONTRACT_ADDRESS = "0x256ff3b9d3df415a05ba42beb5f186c28e103b2a"
-const CONTRACT_ABI = [
-  "function balanceOf(address owner) public view returns (uint256)",
-  "function tokenOfOwnerByIndex(address owner, uint256 index) public view returns (uint256)",
-  "function listTicketForSale(uint256 tokenId, uint256 price) public",
-  "function buyResaleTicket(uint256 tokenId) public payable",
-  "function cancelResaleListing(uint256 tokenId) public",
-  "function getTicketDetails(uint256 tokenId) public view returns (address owner, bool isForSale, uint256 price)",
-]
+// Contract integration will be handled by contractIntegration.js
 
 const QuantumTicketResale = () => {
   const [isVisible, setIsVisible] = useState(false)
@@ -51,7 +45,7 @@ const QuantumTicketResale = () => {
 
   useEffect(() => {
     setIsVisible(true)
-    checkWalletConnection()
+    initWallet()
     if (typeof window.ethereum !== "undefined") {
       window.ethereum.on("accountsChanged", handleAccountsChanged)
       window.ethereum.on("chainChanged", () => window.location.reload())
@@ -63,6 +57,18 @@ const QuantumTicketResale = () => {
       }
     }
   }, [])
+
+  const initWallet = async () => {
+    try {
+      const address = await checkWalletConnection()
+      if (address) {
+        setWalletAddress(address)
+        setIsWalletConnected(true)
+      }
+    } catch (error) {
+      console.error("Error checking wallet connection:", error)
+    }
+  }
 
   useEffect(() => {
     if (isWalletConnected) {
@@ -93,27 +99,16 @@ const QuantumTicketResale = () => {
     }
   }
 
-  const connectWallet = async () => {
-    if (typeof window.ethereum === "undefined") {
-      setError("Please install MetaMask to connect your wallet!")
-      return
-    }
+  const handleConnectWallet = async () => {
+    setIsLoading(true)
+    setError(null)
 
     try {
-      setIsLoading(true)
-      setError(null)
-
-      const accounts = await window.ethereum.request({
-        method: "eth_requestAccounts",
-      })
-
-      if (accounts.length > 0) {
-        setWalletAddress(accounts[0])
-        setIsWalletConnected(true)
-      }
-    } catch (error) {
-      console.error("Error connecting wallet:", error)
-      setError("Failed to connect wallet. Please try again.")
+      const { address } = await connectWallet()
+      setWalletAddress(address)
+      setIsWalletConnected(true)
+    } catch (error: any) {
+      setError("Failed to connect wallet: " + error.message)
     } finally {
       setIsLoading(false)
     }
