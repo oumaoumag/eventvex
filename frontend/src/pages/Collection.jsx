@@ -1,19 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  ChevronDown, 
-  ChevronUp, 
-  Ticket, 
-  Award, 
-  Calendar, 
-  DollarSign, 
+import { ethers } from 'ethers';
+import {
+  ChevronDown,
+  ChevronUp,
+  Ticket,
+  Award,
+  Calendar,
+  DollarSign,
   QrCode,
   MapPin,
   Clock,
   Users,
   Star,
-  ExternalLink
+  ExternalLink,
+  X,
+  Loader2,
+  Tag,
+  AlertCircle
 } from 'lucide-react';
+
+// Contract configuration (same as used in QuantumTicketResale)
+const CONTRACT_ADDRESS = '0x256ff3b9d3df415a05ba42beb5f186c28e103b2a';
+const CONTRACT_ABI = [
+  {
+    "inputs": [
+      {"internalType": "uint256", "name": "tokenId", "type": "uint256"},
+      {"internalType": "uint256", "name": "price", "type": "uint256"}
+    ],
+    "name": "listTicketForSale",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+];
 
 const Collection = () => {
   const navigate = useNavigate();
@@ -23,6 +43,13 @@ const Collection = () => {
     poaps: false,
     attending: false
   });
+
+  // Resell Modal State
+  const [showResellModal, setShowResellModal] = useState(false);
+  const [selectedTicketForResale, setSelectedTicketForResale] = useState(null);
+  const [resalePrice, setResalePrice] = useState('');
+  const [isReselling, setIsReselling] = useState(false);
+  const [resellError, setResellError] = useState(null);
 
   // Enhanced mock data for user's collection with more realistic data
   const [userTickets] = useState([
@@ -185,18 +212,70 @@ const Collection = () => {
   };
 
   const handleResellTicket = (ticket) => {
-    // Navigate to resell page with ticket data formatted for the existing resale component
-    const resaleTicketData = {
-      tokenId: ticket.id,
-      occasionId: ticket.id.split('-')[1], // Extract numeric ID
-      eventName: ticket.eventName,
-      price: ticket.price,
-      seatNumber: ticket.seatNumber,
-      txHash: ticket.txHash,
-      isForSale: false,
-      resalePrice: 0
-    };
-    navigate('/resell', { state: { selectedTicket: resaleTicketData } });
+    // Open inline resell modal instead of navigating to separate page
+    setSelectedTicketForResale(ticket);
+    setResalePrice('');
+    setResellError(null);
+    setShowResellModal(true);
+  };
+
+  const handleCloseResellModal = () => {
+    setShowResellModal(false);
+    setSelectedTicketForResale(null);
+    setResalePrice('');
+    setResellError(null);
+  };
+
+  const handleConfirmResell = async () => {
+    if (!selectedTicketForResale || !resalePrice) {
+      setResellError('Please enter a valid resale price');
+      return;
+    }
+
+    try {
+      setIsReselling(true);
+      setResellError(null);
+
+      // Check if wallet is connected
+      if (!window.ethereum) {
+        throw new Error('Please install MetaMask to list tickets for resale');
+      }
+
+      // Request wallet connection
+      await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+      // Create provider and signer
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+      // Convert price to wei
+      const priceInWei = ethers.parseEther(resalePrice);
+
+      // Extract token ID from ticket ID (assuming format like 'TKT-001')
+      const tokenId = selectedTicketForResale.id.split('-')[1] || '1';
+
+      // Execute the blockchain transaction
+      const tx = await contract.listTicketForSale(tokenId, priceInWei);
+      await tx.wait();
+
+      // Show success message and close modal
+      alert(`Ticket successfully listed for ${resalePrice} ETH!`);
+      handleCloseResellModal();
+
+    } catch (error) {
+      console.error('Error listing ticket for resale:', error);
+
+      if (error.code === 4001) {
+        setResellError('Transaction was rejected by user');
+      } else if (error.message.includes('MetaMask')) {
+        setResellError('Please install MetaMask to list tickets for resale');
+      } else {
+        setResellError(error.message || 'Failed to list ticket for resale. Please try again.');
+      }
+    } finally {
+      setIsReselling(false);
+    }
   };
 
   const handleVerifyTicket = (ticket) => {
@@ -468,6 +547,95 @@ const Collection = () => {
             </div>
           </div>
         </div>
+
+        {/* Resell Modal */}
+        {showResellModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-900/95 backdrop-blur-xl rounded-2xl border border-purple-500/30 p-6 w-full max-w-md">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white">Resell Ticket</h3>
+                <button
+                  onClick={handleCloseResellModal}
+                  className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              {/* Ticket Info */}
+              {selectedTicketForResale && (
+                <div className="bg-gradient-to-br from-purple-900/30 to-blue-900/30 rounded-xl p-4 mb-6 border border-purple-500/20">
+                  <h4 className="font-bold text-white mb-2">{selectedTicketForResale.eventName}</h4>
+                  <div className="space-y-1 text-sm text-gray-400">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-purple-400" />
+                      <span>{selectedTicketForResale.date} at {selectedTicketForResale.time}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Ticket className="w-4 h-4 text-orange-400" />
+                      <span>Seat {selectedTicketForResale.seatNumber}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-green-400" />
+                      <span>Original Price: {selectedTicketForResale.price}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Price Input */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Resale Price (ETH)
+                </label>
+                <input
+                  type="number"
+                  step="0.001"
+                  placeholder="Enter resale price"
+                  value={resalePrice}
+                  onChange={(e) => setResalePrice(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                />
+              </div>
+
+              {/* Error Message */}
+              {resellError && (
+                <div className="mb-4 p-3 bg-red-900/30 border border-red-500/30 rounded-lg flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                  <span className="text-red-300 text-sm">{resellError}</span>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCloseResellModal}
+                  className="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmResell}
+                  disabled={!resalePrice || isReselling}
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-all flex items-center justify-center gap-2"
+                >
+                  {isReselling ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Listing...
+                    </>
+                  ) : (
+                    <>
+                      <Tag className="w-4 h-4" />
+                      List for Sale
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -244,12 +244,12 @@ const UltimateEventPlatform = () => {
                 </button>
               </a>
 
-              <a href="/qrcode" className="w-full xs:w-auto">
+              <a href="/waiting" className="w-full xs:w-auto">
                 <button className="w-full group relative px-6 py-3 sm:px-8 sm:py-3.5 rounded-xl overflow-hidden hover:scale-[1.03] transition-all duration-300">
                   <div className="absolute inset-0 border border-purple-500/50 rounded-xl group-hover:border-purple-400/70 transition-colors" />
                   <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-blue-500/5
                     transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500" />
-                  <span className="relative z-10 font-medium">Tickets Collection</span>
+                  <span className="relative z-10 font-medium">waitinglist</span>
                 </button>
               </a>
             </div>
