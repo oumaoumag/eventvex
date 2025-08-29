@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { ethers } from 'ethers';
 import { ChevronDown, ChevronUp, Ticket, Award, Users, Calendar, MapPin, DollarSign, Hash } from 'lucide-react';
-
-import contractABI from "../abi/Ticket.json";
-const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS || "0x256ff3b9d3df415a05ba42beb5f186c28e103b2a"; //<---add address here
+import { createEvent, validateContractConfig } from '../utils/contractIntegration.js';
+import { connectWallet, checkWalletConnection } from '../utils/walletUtils.js';
 
 const CreateEvent = () => {
-  const [contract, setContract] = useState(null);
   const [account, setAccount] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [contractConfigValid, setContractConfigValid] = useState(false);
 
   // Collapsible sections state
   const [expandedSections, setExpandedSections] = useState({
@@ -51,33 +51,36 @@ const CreateEvent = () => {
 
   useEffect(() => {
     const init = async () => {
-      if (window.ethereum) {
-        try {
-          // Request access to MetaMask
-          await window.ethereum.request({ method: 'eth_requestAccounts' });
-
-          // Create a provider and signer
-          const web3Provider = new ethers.BrowserProvider(window.ethereum);
-          const signer = await web3Provider.getSigner();
-
-          const ticketContract = new ethers.Contract(contractAddress, contractABI, signer);
-
-          setContract(ticketContract);
-
-          // Get connected account
-          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-          setAccount(accounts[0]);
-
-          // Listen for account changes
-          window.ethereum.on('accountsChanged', (accounts) => {
-            setAccount(accounts[0]);
-          });
-        } catch (error) {
-          console.error('Error initializing contract:', error);
+      try {
+        // Check if wallet is already connected
+        const connectedAddress = await checkWalletConnection();
+        if (connectedAddress) {
+          setAccount(connectedAddress);
         }
+
+        // Validate contract configuration
+        const isValid = await validateContractConfig();
+        setContractConfigValid(isValid);
+
+        // Listen for account changes
+        if (window.ethereum) {
+          window.ethereum.on('accountsChanged', (accounts) => {
+            setAccount(accounts.length > 0 ? accounts[0] : '');
+          });
+        }
+      } catch (error) {
+        console.error('Error initializing:', error);
+        setContractConfigValid(false);
       }
     };
     init();
+
+    // Cleanup event listeners
+    return () => {
+      if (window.ethereum) {
+        window.ethereum.removeAllListeners('accountsChanged');
+      }
+    };
   }, []);
 
   // Toggle section expansion
@@ -118,42 +121,33 @@ const CreateEvent = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!contract || !account) {
+    if (!account) {
       alert("Please connect your wallet first!");
-      return
+      return;
     }
 
+    if (!contractConfigValid) {
+      alert("Smart contract configuration is invalid. Please check environment settings.");
+      return;
+    }
+
+    setIsLoading(true);
+
     try {
-      // Convert price to wei
-      const priceInWei = ethers.parseEther(eventData.ticketPrice);
-
-      // Connect to the provider and signer
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-
-      // Connect to the contract
-      const contract = new ethers.Contract(contractAddress, contractABI, signer);
-
-      // Send the transaction to the blockchain
-      const tx = await contract.createEvent(
-        eventData.name,
-        eventData.date,
-        eventData.venue,
-        priceInWei,
-        eventData.totalTickets
-      );
-
-      console.log('Transaction submitted:', tx.hash);
-
-      // Wait for the transaction to be mined
-      const receipt = await tx.wait();
-      console.log('Transaction mined:', receipt);
-
-      contract.on("EventCreated", (eventId, name, creator) => {
-        console.log('Event ID:', eventId.toString());
-        console.log('Event Name:', name);
-        console.log('Event Creator:', creator);
+      // Create event using the new smart contract integration
+      const result = await createEvent({
+        name: eventData.name,
+        title: eventData.name, // Alias for compatibility
+        description: '', // Add description field if needed
+        date: eventData.date,
+        venue: eventData.venue,
+        location: eventData.venue, // Alias for compatibility
+        ticketPrice: eventData.ticketPrice,
+        totalTickets: eventData.totalTickets,
+        maxTickets: eventData.totalTickets // Alias for compatibility
       });
+
+      console.log('Event created successfully:', result);
 
       // If POAP is enabled, create POAP (simulated for now)
       if (poapData.enabled) {
@@ -169,7 +163,7 @@ const CreateEvent = () => {
         // await createAttendanceBadge(badgeData);
       }
 
-      alert(`Event created successfully! ${poapData.enabled ? 'POAP ' : ''}${badgeData.enabled ? 'and attendance badges ' : ''}${(poapData.enabled || badgeData.enabled) ? 'will be available for attendees.' : ''}`);
+      alert(`Event created successfully! Event ID: ${result.eventId}. Contract: ${result.eventContract}. ${poapData.enabled ? 'POAP ' : ''}${badgeData.enabled ? 'and attendance badges ' : ''}${(poapData.enabled || badgeData.enabled) ? 'will be available for attendees.' : ''}`);
 
       // Reset all forms
       setEventData({ name: '', date: '', venue: '', ticketPrice: '', totalTickets: '' });
@@ -178,7 +172,20 @@ const CreateEvent = () => {
 
     } catch (error) {
       console.error('Error creating event:', error);
-      alert('Failed to create the event. See console for details.');
+      alert(`Failed to create the event: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Connect wallet function
+  const handleConnectWallet = async () => {
+    try {
+      const { address } = await connectWallet();
+      setAccount(address);
+    } catch (error) {
+      console.error('Error connecting wallet:', error);
+      alert(`Failed to connect wallet: ${error.message}`);
     }
   };
 
