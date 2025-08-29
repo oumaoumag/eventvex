@@ -8,6 +8,7 @@ import {
   setupWalletListeners,
   formatWalletAddress
 } from '../utils/walletUtils';
+import { purchaseTicket, buyResaleTicket } from '../utils/contractIntegration';
 
 const TicketPurchasePage = () => {
   const location = useLocation();
@@ -76,30 +77,25 @@ const TicketPurchasePage = () => {
     setError("");
 
     try {
-      // Get wallet connection
-      const { signer } = await connectWallet();
+      let result;
 
-      // For resale tickets, we would call the buyResaleTicket function
-      // For original tickets, we would call the mint function
-      const totalCost = ethers.parseEther(ticket.finalPrice.toString());
-
-      let tx;
       if (ticket.isResale) {
-        // This would be the resale purchase logic
-        // For now, we'll simulate with a simple transaction
-        tx = await signer.sendTransaction({
-          to: ticket.seller, // In a real implementation, this would go through the smart contract
-          value: totalCost,
-        });
+        // Purchase resale ticket using smart contract
+        result = await buyResaleTicket(
+          event.contractAddress || ticket.contractAddress,
+          ticket.tokenId,
+          ticket.finalPrice.toString()
+        );
       } else {
-        // This would be the original ticket purchase logic
-        tx = await signer.sendTransaction({
-          to: "0x256ff3b9d3df415a05ba42beb5f186c28e103b2a", // Contract address
-          value: totalCost,
-        });
+        // Purchase original ticket using smart contract
+        result = await purchaseTicket(
+          event.contractAddress,
+          ticket.seatNumber || 0, // Use seat number or default to 0
+          ticket.finalPrice.toString()
+        );
       }
 
-      await tx.wait();
+      console.log('Purchase successful:', result);
       setPurchaseStep('success');
       setError("");
     } catch (err) {

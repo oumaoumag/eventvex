@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ethers } from 'ethers';
-import contractABI from "../../src/abi/Ticket.json";
+import { createEvent } from '../utils/contractIntegration';
+import { connectWallet } from '../utils/walletUtils';
 
 const CreateEvent = () => {
   const [eventData, setEventData] = useState({
@@ -21,33 +22,19 @@ const CreateEvent = () => {
     e.preventDefault();
 
     try {
-      // Request access to MetaMask
-      if (!window.ethereum) {
-        alert('MetaMask is not installed. Please install it to use this feature.');
-        return;
-      }
+      // Create event using the new smart contract integration
+      const result = await createEvent({
+        name: eventData.name,
+        title: eventData.name,
+        description: eventData.description,
+        date: eventData.date,
+        venue: '', // Add venue field if needed
+        ticketPrice: '0.01', // Default price, should be configurable
+        totalTickets: 100, // Default tickets, should be configurable
+      });
 
-      // Connect to the provider and signer
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
-
-      // Connect to the contract
-      
-      const contractAddress = "0x256ff3b9d3df415a05ba42beb5f186c28e103b2a"; //<---add address here
-      const contract = new ethers.Contract(contractAddress, contractABI, provider);
-
-      // Send the transaction to the blockchain
-      const tx = await contract.createEvent(
-        eventData.name,
-        eventData.date,
-        eventData.description
-      );
-
-      console.log('Transaction submitted:', tx.hash);
-
-      // Wait for the transaction to be mined
-      const receipt = await tx.wait();
-      console.log('Transaction mined:', receipt);
+      console.log('Event created successfully:', result);
+      alert(`Event created successfully! Event ID: ${result.eventId}, Contract: ${result.eventContract}`);
 
       alert('Event created successfully on the blockchain!');
       setEventData({ name: '', date: '', description: '' });
