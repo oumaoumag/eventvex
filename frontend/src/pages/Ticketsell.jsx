@@ -336,7 +336,18 @@ const TokenizedTicketing = () => {
       location: "Tokyo, Japan",
       coordinates: [35.6762, 139.6503],
       description: "Explore the future of gaming in the metaverse",
-      image: "/src/assets/dr.png"
+      image: "/src/assets/dr.png",
+      tickets: {
+        original: [
+          { id: "orig-5-1", seatNumber: "VR-1", price: 0.9, available: true, type: "VR Experience" },
+          { id: "orig-5-2", seatNumber: "VR-2", price: 0.9, available: true, type: "VR Experience" },
+          { id: "orig-5-3", seatNumber: "GA-1", price: 0.6, available: true, type: "General" },
+          { id: "orig-5-4", seatNumber: "GA-2", price: 0.6, available: true, type: "General" }
+        ],
+        resale: [
+          { id: "resale-5-1", seatNumber: "VR-3", originalPrice: 0.9, resalePrice: 1.1, seller: "0x5678...9012", type: "VR Experience" }
+        ]
+      }
     },
     {
       id: 6,
@@ -351,7 +362,19 @@ const TokenizedTicketing = () => {
       location: "Miami, FL",
       coordinates: [25.7617, -80.1918],
       description: "First-ever cryptocurrency-powered sports tournament",
-      image: "/src/assets/im.png"
+      image: "/src/assets/im.png",
+      tickets: {
+        original: [
+          { id: "orig-6-1", seatNumber: "Court-1", price: 0.6, available: true, type: "Courtside" },
+          { id: "orig-6-2", seatNumber: "Court-2", price: 0.6, available: true, type: "Courtside" },
+          { id: "orig-6-3", seatNumber: "Box-1", price: 0.4, available: true, type: "Box Seat" },
+          { id: "orig-6-4", seatNumber: "Gen-1", price: 0.2, available: true, type: "General" }
+        ],
+        resale: [
+          { id: "resale-6-1", seatNumber: "Court-3", originalPrice: 0.6, resalePrice: 0.8, seller: "0x6789...0123", type: "Courtside" },
+          { id: "resale-6-2", seatNumber: "Box-2", originalPrice: 0.4, resalePrice: 0.5, seller: "0x7890...1234", type: "Box Seat" }
+        ]
+      }
     }
   ];
 
