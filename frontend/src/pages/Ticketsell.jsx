@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import imImage from "../assets/im.png";
-import Chatbit from './Chatbit';
 import {
   Ticket,
   Wallet,
@@ -877,12 +876,6 @@ const TokenizedTicketing = () => {
               {userLocation && ` (${userLocation[0].toFixed(4)}, ${userLocation[1].toFixed(4)})`}
             </div>
           </div>
-        </div>
-      </section>
-
-      <section>
-        <div>
-          <Chatbit />
         </div>
       </section>
     </div>

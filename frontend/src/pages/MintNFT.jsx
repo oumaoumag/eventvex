@@ -9,7 +9,6 @@ import {
   setupWalletListeners,
   formatWalletAddress
 } from '../utils/walletUtils';
-import Chatbit from './Chatbit';
 
 const contractAddress = '0x256ff3b9d3df415a05ba42beb5f186c28e103b2a'; // Replace with your NFT contract address
 
@@ -172,11 +171,6 @@ const MintNFT = () => {
           )}
         </div>
       </div>
-      <section>
-          <div>
-            <Chatbit />
-          </div>
-        </section>
     </div>
   );
 };

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, Star, Users, ChevronRight, Zap } from 'lucide-react';
-import Chatbit from '../pages/Chatbit';
 
 const ParticleField = () => {
   return (
@@ -111,11 +110,6 @@ const WaitlistPage = () => {
             </div>
           </div>
         </div>
-        <section>
-        <div>
-          <Chatbit />
-        </div>
-      </section>
       </main>
     </div>
   );

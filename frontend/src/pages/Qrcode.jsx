@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import QRCode from 'react-qr-code';
 import { ethers } from 'ethers';
-import Chatbit from './Chatbit';
 import { Shield, CheckCircle, XCircle, RefreshCw, Ticket, Lock, Scan, Globe, AlertTriangle } from 'lucide-react';
 
 // Minimal ABI for ticket verification contract
@@ -408,11 +407,6 @@ const QRVerificationSystem = () => {
             </div>
           </div>
         </div>
-        <section>
-          <div>
-            <Chatbit />
-          </div>
-        </section>
       </div>
     </div>
   );

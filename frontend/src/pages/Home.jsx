@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Moon, Ticket, Calendar, Users, TrendingUp, ChevronRight, Star, Zap, Activity, Globe, Power } from 'lucide-react';
 import bitcoinImage from "../assets/tig.png";
-import Chatbit from './Chatbit';
 import Testimonials from './Testimonials';
 import Discover from './Discover';
 // Footer is now handled elsewhere in the application
@@ -347,11 +346,6 @@ const UltimateEventPlatform = () => {
               </div>
             </div>
           ))}
-        </div>
-      </section>
-      <section>
-        <div>
-          <Chatbit />
         </div>
       </section>
       <section>

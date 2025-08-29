@@ -8,7 +8,6 @@ import Hero from './pages/Hero';
 import EventList from './pages/EventList';
 import EventDetails from './pages/EventDetails';
 import Qrcode from './pages/Qrcode';
-import Chatbit from './pages/Chatbit';
 import Footer from './components/Footer';
 import Ticketsell from './pages/Ticketsell';
 import MintNFT from './pages/MintNFT';
@@ -74,18 +73,14 @@ const router = createBrowserRouter([
     path: "event",
     element: <Layout><EventList /></Layout>,
   },
-  {
-    path: "mint",
-    element: <Layout><MintNFT /></Layout>,
-  },
+  // {
+  //   path: "mint",
+  //   element: <Layout><MintNFT /></Layout>,
+  // },
 
   {
     path: "event-details",
     element: <Layout><EventDetails /></Layout>,
-  },
-  {
-    path: "chatbit",
-    element: <Chatbit />,
   },
 
   {
