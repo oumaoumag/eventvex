@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Users, Clock, Star, ArrowLeft, ShoppingCart, Tag, User } from 'lucide-react';
+import { getEventDetails, getAvailableSeats } from '../utils/contractIntegration';
 
 const EventTicketListing = () => {
   const { eventId } = useParams();
@@ -178,10 +179,63 @@ const EventTicketListing = () => {
   ];
 
   useEffect(() => {
-    // Simulate loading and find the event
-    const foundEvent = sampleEvents.find(e => e.id === parseInt(eventId));
-    setEvent(foundEvent);
-    setLoading(false);
+    const loadEventFromBlockchain = async () => {
+      try {
+        setLoading(true);
+
+        // Try to load event from smart contract first
+        if (eventId && !isNaN(parseInt(eventId))) {
+          try {
+            const blockchainEvent = await getEventDetails(parseInt(eventId));
+            const availableSeats = await getAvailableSeats(blockchainEvent.contractAddress);
+
+            // Convert blockchain event to component format
+            const formattedEvent = {
+              id: blockchainEvent.id,
+              name: blockchainEvent.title,
+              date: blockchainEvent.eventDate.toLocaleDateString(),
+              dateObj: blockchainEvent.eventDate,
+              price: `${blockchainEvent.ticketPrice} ETH`,
+              priceValue: parseFloat(blockchainEvent.ticketPrice),
+              available: availableSeats.length,
+              total: blockchainEvent.maxTickets,
+              category: "Blockchain Event",
+              location: "TBD", // Add location field to smart contract if needed
+              description: "Event created on blockchain",
+              contractAddress: blockchainEvent.contractAddress,
+              organizer: blockchainEvent.organizer,
+              tickets: {
+                original: availableSeats.map(seatNum => ({
+                  id: `orig-${blockchainEvent.id}-${seatNum}`,
+                  seatNumber: seatNum.toString(),
+                  price: parseFloat(blockchainEvent.ticketPrice),
+                  available: true,
+                  type: "General"
+                })),
+                resale: [] // TODO: Load resale tickets from contract
+              }
+            };
+
+            setEvent(formattedEvent);
+            setLoading(false);
+            return;
+          } catch (blockchainError) {
+            console.log('Event not found on blockchain, falling back to sample data:', blockchainError);
+          }
+        }
+
+        // Fallback to sample data if blockchain loading fails
+        const foundEvent = sampleEvents.find(e => e.id === parseInt(eventId));
+        setEvent(foundEvent);
+        setLoading(false);
+
+      } catch (error) {
+        console.error('Error loading event:', error);
+        setLoading(false);
+      }
+    };
+
+    loadEventFromBlockchain();
   }, [eventId]);
 
   const getAllTickets = () => {
