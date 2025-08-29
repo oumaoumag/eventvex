@@ -3,9 +3,8 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
  * @title EventTicket
@@ -13,15 +12,13 @@ import "@openzeppelin/contracts/utils/Counters.sol";
  * @notice This contract represents tickets for a single event as NFTs
  */
 contract EventTicket is ERC721, AccessControl, ReentrancyGuard, Pausable {
-    using Counters for Counters.Counter;
-
     // Roles
     bytes32 public constant ORGANIZER_ROLE = keccak256("ORGANIZER_ROLE");
     bytes32 public constant VERIFIER_ROLE = keccak256("VERIFIER_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
-    // Counters
-    Counters.Counter private _tokenIdCounter;
+    // Token ID counter
+    uint256 private _tokenIdCounter;
 
     // Event information
     struct EventInfo {
@@ -104,8 +101,8 @@ contract EventTicket is ERC721, AccessControl, ReentrancyGuard, Pausable {
         require(msg.value >= eventInfo.ticketPrice, "Insufficient payment");
         require(block.timestamp < eventInfo.eventDate, "Event has already started");
 
-        uint256 tokenId = _tokenIdCounter.current();
-        _tokenIdCounter.increment();
+        uint256 tokenId = _tokenIdCounter;
+        _tokenIdCounter++;
 
         // Create ticket info
         tickets[tokenId] = TicketInfo({
@@ -197,7 +194,7 @@ contract EventTicket is ERC721, AccessControl, ReentrancyGuard, Pausable {
      * @param _tokenId The token ID to mark as used
      */
     function useTicket(uint256 _tokenId) external onlyRole(VERIFIER_ROLE) {
-        require(_exists(_tokenId), "Ticket does not exist");
+        require(_ownerOf(_tokenId) != address(0), "Ticket does not exist");
         require(!tickets[_tokenId].isUsed, "Ticket already used");
         require(block.timestamp >= eventInfo.eventDate, "Event has not started");
 
@@ -251,12 +248,12 @@ contract EventTicket is ERC721, AccessControl, ReentrancyGuard, Pausable {
         uint256 organizerAmount = _amount - platformFeeAmount;
 
         if (platformFeeAmount > 0) {
-            (bool success, ) = payable(platformFeeRecipient).call{value: platformFeeAmount}("");
-            require(success, "Platform fee transfer failed");
+            (bool platformSuccess, ) = payable(platformFeeRecipient).call{value: platformFeeAmount}("");
+            require(platformSuccess, "Platform fee transfer failed");
         }
 
-        (bool success, ) = payable(eventInfo.organizer).call{value: organizerAmount}("");
-        require(success, "Organizer payment transfer failed");
+        (bool organizerSuccess, ) = payable(eventInfo.organizer).call{value: organizerAmount}("");
+        require(organizerSuccess, "Organizer payment transfer failed");
     }
 
     /**
@@ -271,19 +268,19 @@ contract EventTicket is ERC721, AccessControl, ReentrancyGuard, Pausable {
 
         // Platform fee
         if (platformFeeAmount > 0) {
-            (bool success, ) = payable(platformFeeRecipient).call{value: platformFeeAmount}("");
-            require(success, "Platform fee transfer failed");
+            (bool platformSuccess, ) = payable(platformFeeRecipient).call{value: platformFeeAmount}("");
+            require(platformSuccess, "Platform fee transfer failed");
         }
 
         // Organizer royalty
         if (royaltyAmount > 0) {
-            (bool success, ) = payable(eventInfo.organizer).call{value: royaltyAmount}("");
-            require(success, "Royalty transfer failed");
+            (bool royaltySuccess, ) = payable(eventInfo.organizer).call{value: royaltyAmount}("");
+            require(royaltySuccess, "Royalty transfer failed");
         }
 
         // Seller payment
-        (bool success, ) = payable(_seller).call{value: sellerAmount}("");
-        require(success, "Seller payment transfer failed");
+        (bool sellerSuccess, ) = payable(_seller).call{value: sellerAmount}("");
+        require(sellerSuccess, "Seller payment transfer failed");
     }
 
     /**
@@ -291,7 +288,7 @@ contract EventTicket is ERC721, AccessControl, ReentrancyGuard, Pausable {
      * @param _tokenId The token ID
      */
     function getTicketInfo(uint256 _tokenId) external view returns (TicketInfo memory) {
-        require(_exists(_tokenId), "Ticket does not exist");
+        require(_ownerOf(_tokenId) != address(0), "Ticket does not exist");
         return tickets[_tokenId];
     }
 
