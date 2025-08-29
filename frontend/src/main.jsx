@@ -12,6 +12,7 @@ import Footer from './components/Footer';
 import Ticketsell from './pages/Ticketsell';
 import MintNFT from './pages/MintNFT';
 import Ticket from './pages/Ticket';
+import Collection from './pages/Collection';
 import Teams from './pages/Teams';
 import Layout from './Layout';
 import './index.css';
@@ -56,6 +57,10 @@ const router = createBrowserRouter([
   {
     path: "ticket",
     element: <Layout><Ticket /></Layout>,
+  },
+  {
+    path: "collection",
+    element: <Layout><Collection /></Layout>,
   },
   {
     path: "teams",
