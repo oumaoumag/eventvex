@@ -2,9 +2,8 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 import "./EventTicket.sol";
 
 /**
@@ -13,14 +12,12 @@ import "./EventTicket.sol";
  * @notice This contract allows organizers to create events and manages the platform
  */
 contract EventFactory is AccessControl, ReentrancyGuard, Pausable {
-    using Counters for Counters.Counter;
-
     // Roles
     bytes32 public constant ORGANIZER_ROLE = keccak256("ORGANIZER_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
     // Counter for event IDs
-    Counters.Counter private _eventIdCounter;
+    uint256 private _eventIdCounter;
 
     // Platform configuration
     address public platformFeeRecipient;
@@ -100,8 +97,8 @@ contract EventFactory is AccessControl, ReentrancyGuard, Pausable {
         require(_maxResalePrice >= _ticketPrice, "Max resale price too low");
 
         // Get new event ID
-        eventId = _eventIdCounter.current();
-        _eventIdCounter.increment();
+        eventId = _eventIdCounter;
+        _eventIdCounter++;
 
         // Create event info struct
         EventTicket.EventInfo memory eventInfo = EventTicket.EventInfo({
@@ -167,7 +164,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Pausable {
      * @param _eventId The event ID to deactivate
      */
     function deactivateEvent(uint256 _eventId) external {
-        require(_eventId < _eventIdCounter.current(), "Event does not exist");
+        require(_eventId < _eventIdCounter, "Event does not exist");
         
         EventData storage eventData = events[_eventId];
         require(eventData.isActive, "Event already deactivated");
@@ -186,7 +183,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Pausable {
      * @param _eventId The event ID
      */
     function getEvent(uint256 _eventId) external view returns (EventData memory) {
-        require(_eventId < _eventIdCounter.current(), "Event does not exist");
+        require(_eventId < _eventIdCounter, "Event does not exist");
         return events[_eventId];
     }
 
@@ -260,7 +257,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Pausable {
      * @dev Get total number of events created
      */
     function getTotalEvents() external view returns (uint256) {
-        return _eventIdCounter.current();
+        return _eventIdCounter;
     }
 
     /**
