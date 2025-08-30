@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from "react"
 import { ethers } from "ethers"
-import { Wallet, Loader2, AlertCircle, Tag, ShoppingCart } from "lucide-react"
+import { Wallet, Loader2, AlertCircle, Tag } from "lucide-react"
+import { listTicketForResale, buyResaleTicket, getUserTickets } from '../utils/contractIntegration'
+import { connectWallet, checkWalletConnection } from '../utils/walletUtils'
 
 declare global {
   interface Window {
@@ -29,15 +31,7 @@ interface ResaleListing {
   price: bigint
 }
 
-const CONTRACT_ADDRESS = "0x256ff3b9d3df415a05ba42beb5f186c28e103b2a"
-const CONTRACT_ABI = [
-  "function balanceOf(address owner) public view returns (uint256)",
-  "function tokenOfOwnerByIndex(address owner, uint256 index) public view returns (uint256)",
-  "function listTicketForSale(uint256 tokenId, uint256 price) public",
-  "function buyResaleTicket(uint256 tokenId) public payable",
-  "function cancelResaleListing(uint256 tokenId) public",
-  "function getTicketDetails(uint256 tokenId) public view returns (address owner, bool isForSale, uint256 price)",
-]
+// Contract integration will be handled by contractIntegration.js
 
 const QuantumTicketResale = () => {
   const [isVisible, setIsVisible] = useState(false)
@@ -46,14 +40,12 @@ const QuantumTicketResale = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [userTickets, setUserTickets] = useState<Ticket[]>([])
-  const [resaleListings, setResaleListings] = useState<ResaleListing[]>([])
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
   const [resalePrice, setResalePrice] = useState("")
-  const [activeTab, setActiveTab] = useState("resell")
 
   useEffect(() => {
     setIsVisible(true)
-    checkWalletConnection()
+    initWallet()
     if (typeof window.ethereum !== "undefined") {
       window.ethereum.on("accountsChanged", handleAccountsChanged)
       window.ethereum.on("chainChanged", () => window.location.reload())
@@ -66,10 +58,21 @@ const QuantumTicketResale = () => {
     }
   }, [])
 
+  const initWallet = async () => {
+    try {
+      const address = await checkWalletConnection()
+      if (address) {
+        setWalletAddress(address)
+        setIsWalletConnected(true)
+      }
+    } catch (error) {
+      console.error("Error checking wallet connection:", error)
+    }
+  }
+
   useEffect(() => {
     if (isWalletConnected) {
       updateUserTickets()
-      updateResaleListings()
     }
   }, [isWalletConnected])
 
@@ -96,27 +99,16 @@ const QuantumTicketResale = () => {
     }
   }
 
-  const connectWallet = async () => {
-    if (typeof window.ethereum === "undefined") {
-      setError("Please install MetaMask to connect your wallet!")
-      return
-    }
+  const handleConnectWallet = async () => {
+    setIsLoading(true)
+    setError(null)
 
     try {
-      setIsLoading(true)
-      setError(null)
-
-      const accounts = await window.ethereum.request({
-        method: "eth_requestAccounts",
-      })
-
-      if (accounts.length > 0) {
-        setWalletAddress(accounts[0])
-        setIsWalletConnected(true)
-      }
-    } catch (error) {
-      console.error("Error connecting wallet:", error)
-      setError("Failed to connect wallet. Please try again.")
+      const { address } = await connectWallet()
+      setWalletAddress(address)
+      setIsWalletConnected(true)
+    } catch (error: any) {
+      setError("Failed to connect wallet: " + error.message)
     } finally {
       setIsLoading(false)
     }
@@ -149,90 +141,7 @@ const QuantumTicketResale = () => {
     }
   }
 
-  const updateResaleListings = async () => {
-    try {
-      const provider = new ethers.BrowserProvider(window.ethereum!)
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider)
-
-      const totalSupply = await contract.totalSupply()
-      const listings: ResaleListing[] = []
-
-      for (let i = 0; i < totalSupply; i++) {
-        const details = await contract.getTicketDetails(i)
-        if (details.isForSale) {
-          listings.push({
-            tokenId: i.toString(),
-            owner: details.owner,
-            isForSale: details.isForSale,
-            price: details.price,
-          })
-        }
-      }
-
-      // If no listings found from blockchain, add dummy listings
-      if (listings.length === 0) {
-        const dummyListings = [
-          {
-            tokenId: "42",
-            owner: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
-            isForSale: true,
-            price: ethers.parseEther("0.5"),
-          },
-          {
-            tokenId: "137",
-            owner: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-            isForSale: true,
-            price: ethers.parseEther("0.75"),
-          },
-          {
-            tokenId: "256",
-            owner: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
-            isForSale: true,
-            price: ethers.parseEther("1.2"),
-          },
-          {
-            tokenId: "512",
-            owner: "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
-            isForSale: true,
-            price: ethers.parseEther("0.9"),
-          },
-        ]
-        setResaleListings(dummyListings)
-      } else {
-        setResaleListings(listings)
-      }
-    } catch (error) {
-      console.error("Error fetching resale listings:", error)
-      // Add dummy listings in case of error
-      const dummyListings = [
-        {
-          tokenId: "42",
-          owner: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
-          isForSale: true,
-          price: ethers.parseEther("0.5"),
-        },
-        {
-          tokenId: "137",
-          owner: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-          isForSale: true,
-          price: ethers.parseEther("0.75"),
-        },
-        {
-          tokenId: "256",
-          owner: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
-          isForSale: true,
-          price: ethers.parseEther("1.2"),
-        },
-        {
-          tokenId: "512",
-          owner: "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
-          isForSale: true,
-          price: ethers.parseEther("0.9"),
-        },
-      ]
-      setResaleListings(dummyListings)
-    }
-  }
+  // Removed updateResaleListings function - buy functionality moved to event listings page
 
   const handleListForResale = async () => {
     if (!selectedTicket || !resalePrice) return
@@ -250,7 +159,6 @@ const QuantumTicketResale = () => {
       await tx.wait()
 
       await updateUserTickets()
-      await updateResaleListings()
 
       alert("Ticket listed for resale successfully!")
     } catch (error) {
@@ -261,50 +169,7 @@ const QuantumTicketResale = () => {
     }
   }
 
-  const handleBuyResaleTicket = async (tokenId: string, price: bigint) => {
-    try {
-      setIsLoading(true)
-      setError(null)
-
-      const provider = new ethers.BrowserProvider(window.ethereum!)
-      const signer = await provider.getSigner()
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer)
-
-      // Ensure the tokenId is properly formatted (as a number or BigInt)
-      // Convert string tokenId to a BigInt
-      const tokenIdBigInt = BigInt(tokenId)
-      
-      // Debug log to check values before transaction
-      console.log("Buying ticket:", { tokenId: tokenIdBigInt, price, formattedPrice: ethers.formatEther(price) })
-      
-      // Send the transaction properly, with value included in transaction options
-      const tx = await contract.buyResaleTicket(tokenIdBigInt, { value: price })
-      
-      console.log("Transaction sent:", tx)
-      const receipt = await tx.wait()
-      console.log("Transaction receipt:", receipt)
-
-      await updateUserTickets()
-      await updateResaleListings()
-
-      alert("Resale ticket purchased successfully!")
-    } catch (error: any) {
-      console.error("Error buying resale ticket:", error)
-      
-      // More descriptive error message for users
-      if (error.code === 'CALL_EXCEPTION') {
-        setError("Transaction failed. This could be because the ticket is no longer for sale, price has changed, or you may not have enough funds.")
-      } else if (error.code === 'INSUFFICIENT_FUNDS') {
-        setError("Your wallet does not have enough funds to complete this purchase.")
-      } else if (error.code === 'USER_REJECTED') {
-        setError("You rejected the transaction.")
-      } else {
-        setError(error.message || "Failed to buy resale ticket. Please try again.")
-      }
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  // Removed handleBuyResaleTicket function - buy functionality moved to event listings page
 
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`
@@ -347,30 +212,17 @@ const QuantumTicketResale = () => {
             </p>
           </div>
 
-          <div className="flex justify-center mb-8 flex-wrap">
-            <div className="inline-flex rounded-md shadow-sm flex-wrap justify-center" role="group">
-              <button
-                type="button"
-                onClick={() => setActiveTab("resell")}
-                className={`px-4 py-2 text-sm font-medium rounded-l-lg ${
-                  activeTab === "resell"
-                    ? "bg-purple-600 text-white"
-                    : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
-                }`}
-              >
-                Resell Your Ticket
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("buy")}
-                className={`px-4 py-2 text-sm font-medium rounded-r-md ${
-                  activeTab === "buy"
-                    ? "bg-purple-600 text-white"
-                    : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
-                }`}
-              >
-                Buy Resale Ticket
-              </button>
+          {/* Header - Resell Only */}
+          <div className="text-center mb-8">
+            <div className="bg-gray-900/50 backdrop-blur-xl rounded-xl border border-purple-500/30 p-6">
+              <div className="flex items-center justify-center gap-3 mb-2">
+                <Tag className="w-6 h-6 text-purple-400" />
+                <h2 className="text-2xl font-bold text-white">Resell Your Tickets</h2>
+              </div>
+              <p className="text-gray-400">List your tickets for resale on the marketplace</p>
+              <div className="mt-4 text-sm text-blue-400">
+                💡 Looking to buy tickets? Visit our <span className="underline cursor-pointer">Event Listings</span> page
+              </div>
             </div>
           </div>
 
@@ -409,10 +261,9 @@ const QuantumTicketResale = () => {
             </div>
           )}
 
-          {activeTab === "resell" && (
-            <div className="bg-gray-900/50 backdrop-blur-xl rounded-2xl border border-purple-500/30 p-8">
-              <h2 className="text-2xl font-bold mb-4">Resell Your Ticket</h2>
-              <p className="text-gray-400 mb-6">List your ticket for resale on the marketplace</p>
+          <div className="bg-gray-900/50 backdrop-blur-xl rounded-2xl border border-purple-500/30 p-8">
+            <h2 className="text-2xl font-bold mb-4">Resell Your Ticket</h2>
+            <p className="text-gray-400 mb-6">List your ticket for resale on the marketplace</p>
               <div className="grid gap-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {userTickets.map((ticket) => (
@@ -462,101 +313,6 @@ const QuantumTicketResale = () => {
                 List for Resale
               </button>
             </div>
-          )}
-
-          {activeTab === "buy" && (
-            <div className="bg-gray-900/50 backdrop-blur-xl rounded-2xl border border-purple-500/30 p-8">
-              <h2 className="text-2xl font-bold mb-4">Buy Resale Tickets</h2>
-              <p className="text-gray-400 mb-6">Purchase tickets listed for resale by other users</p>
-              <div className="grid gap-4">
-                {resaleListings.length > 0 ? (
-                  resaleListings.map((listing) => {
-                    // Generate random event details for dummy tickets
-                    const eventNames = [
-                      "Quantum Nexus Festival",
-                      "Blockchain Summit 2023",
-                      "Crypto Conference",
-                      "Web3 Hackathon",
-                      "NFT Art Exhibition"
-                    ];
-                    const locations = [
-                      "Virtual Reality Hall",
-                      "Metaverse Arena",
-                      "Crypto Convention Center",
-                      "Blockchain Boulevard",
-                      "Digital Domain Stadium"
-                    ];
-                    const dates = [
-                      "Dec 15, 2023",
-                      "Jan 20, 2024",
-                      "Feb 5, 2024",
-                      "Mar 12, 2024",
-                      "Apr 8, 2024"
-                    ];
-                    
-                    // Use token ID to deterministically select event details
-                    const tokenIdNum = parseInt(listing.tokenId);
-                    const eventName = eventNames[tokenIdNum % eventNames.length];
-                    const location = locations[tokenIdNum % locations.length];
-                    const date = dates[tokenIdNum % dates.length];
-                    
-                    return (
-                      <div
-                        key={listing.tokenId}
-                        className="flex flex-col p-4 border border-purple-500/30 rounded-lg bg-gray-800/50 hover:bg-gray-800/70 transition-all duration-300 backdrop-blur-sm"
-                      >
-                        <div className="flex justify-between items-start mb-3">
-                          <div>
-                            <h3 className="text-lg font-semibold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                              {eventName}
-                            </h3>
-                            <p className="text-sm text-gray-300">Ticket #{listing.tokenId}</p>
-                          </div>
-                          <div className="px-3 py-1 bg-purple-600/30 rounded-full text-purple-300 text-sm font-medium">
-                            {ethers.formatEther(listing.price)} ETH
-                          </div>
-                        </div>
-                        
-                        <div className="mb-4">
-                          <div className="flex items-center text-sm text-gray-400 mb-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            {location}
-                          </div>
-                          <div className="flex items-center text-sm text-gray-400">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            {date}
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-700">
-                          <div className="text-xs text-gray-500">
-                            Seller: {formatAddress(listing.owner)}
-                          </div>
-                          <button
-                            onClick={() => handleBuyResaleTicket(listing.tokenId, listing.price)}
-                            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white rounded-lg transition-colors duration-300 flex items-center"
-                          >
-                            <ShoppingCart className="w-4 h-4 mr-2" />
-                            Buy Now
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="text-center py-10">
-                    <div className="text-gray-400 mb-2">No tickets available for resale at the moment</div>
-                    <p className="text-sm text-gray-500">Check back later or list your own ticket for resale</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           {error && (
             <div className="mt-4 text-red-500 text-center">

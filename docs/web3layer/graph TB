@@ -1,0 +1,26 @@
+graph TB
+    A[EventVex Core System] --> B[Event Management]
+    A --> C[Ticket System]
+    A --> D[Marketplace]
+    A --> E[Verification]
+    A --> F[Governance]
+    
+    B --> B1[EventFactory Contract]
+    B --> B2[Event Registry]
+    B --> B3[POAP Integration]
+    
+    C --> C1[TicketNFT Contract]
+    C --> C2[Seat Management]
+    C3[Metadata Storage]
+    
+    D --> D1[Resale Marketplace]
+    D --> D2[Price Controls]
+    D --> D3[Royalty System]
+    
+    E --> E1[QR Verification]
+    E --> E2[Attendance Tracking]
+    E --> E3[Badge System]
+    
+    F --> F1[Access Control]
+    F --> F2[Fee Management]
+    F --> F3[Upgrade Proxy]

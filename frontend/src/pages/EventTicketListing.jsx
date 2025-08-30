@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Users, Clock, Star, ArrowLeft, ShoppingCart, Tag, User } from 'lucide-react';
+import { getEventDetails, getAvailableSeats } from '../utils/contractIntegration';
 
 const EventTicketListing = () => {
   const { eventId } = useParams();
@@ -121,14 +122,120 @@ const EventTicketListing = () => {
           { id: "resale-4-1", seatNumber: "Front-3", originalPrice: 0.3, resalePrice: 0.35, seller: "0x4567...8901", type: "Front Row" }
         ]
       }
+    },
+    {
+      id: 5,
+      name: "Gaming Metaverse Expo",
+      date: "July 22, 2025",
+      dateObj: new Date("2025-07-22"),
+      price: "0.9 ETH",
+      priceValue: 0.9,
+      available: 50,
+      total: 800,
+      category: "Gaming",
+      location: "Tokyo, Japan",
+      coordinates: [35.6762, 139.6503],
+      description: "Explore the future of gaming in the metaverse",
+      image: "/src/assets/dr.png",
+      tickets: {
+        original: [
+          { id: "orig-5-1", seatNumber: "VR-1", price: 0.9, available: true, type: "VR Experience" },
+          { id: "orig-5-2", seatNumber: "VR-2", price: 0.9, available: true, type: "VR Experience" },
+          { id: "orig-5-3", seatNumber: "GA-1", price: 0.6, available: true, type: "General" },
+          { id: "orig-5-4", seatNumber: "GA-2", price: 0.6, available: true, type: "General" }
+        ],
+        resale: [
+          { id: "resale-5-1", seatNumber: "VR-3", originalPrice: 0.9, resalePrice: 1.1, seller: "0x5678...9012", type: "VR Experience" }
+        ]
+      }
+    },
+    {
+      id: 6,
+      name: "Crypto Sports Championship",
+      date: "August 15, 2025",
+      dateObj: new Date("2025-08-15"),
+      price: "0.6 ETH",
+      priceValue: 0.6,
+      available: 400,
+      total: 600,
+      category: "Sports",
+      location: "Miami, FL",
+      coordinates: [25.7617, -80.1918],
+      description: "First-ever cryptocurrency-powered sports tournament",
+      image: "/src/assets/im.png",
+      tickets: {
+        original: [
+          { id: "orig-6-1", seatNumber: "Court-1", price: 0.6, available: true, type: "Courtside" },
+          { id: "orig-6-2", seatNumber: "Court-2", price: 0.6, available: true, type: "Courtside" },
+          { id: "orig-6-3", seatNumber: "Box-1", price: 0.4, available: true, type: "Box Seat" },
+          { id: "orig-6-4", seatNumber: "Gen-1", price: 0.2, available: true, type: "General" }
+        ],
+        resale: [
+          { id: "resale-6-1", seatNumber: "Court-3", originalPrice: 0.6, resalePrice: 0.8, seller: "0x6789...0123", type: "Courtside" },
+          { id: "resale-6-2", seatNumber: "Box-2", originalPrice: 0.4, resalePrice: 0.5, seller: "0x7890...1234", type: "Box Seat" }
+        ]
+      }
     }
   ];
 
   useEffect(() => {
-    // Simulate loading and find the event
-    const foundEvent = sampleEvents.find(e => e.id === parseInt(eventId));
-    setEvent(foundEvent);
-    setLoading(false);
+    const loadEventFromBlockchain = async () => {
+      try {
+        setLoading(true);
+
+        // Try to load event from smart contract first
+        if (eventId && !isNaN(parseInt(eventId))) {
+          try {
+            const blockchainEvent = await getEventDetails(parseInt(eventId));
+            const availableSeats = await getAvailableSeats(blockchainEvent.contractAddress);
+
+            // Convert blockchain event to component format
+            const formattedEvent = {
+              id: blockchainEvent.id,
+              name: blockchainEvent.title,
+              date: blockchainEvent.eventDate.toLocaleDateString(),
+              dateObj: blockchainEvent.eventDate,
+              price: `${blockchainEvent.ticketPrice} ETH`,
+              priceValue: parseFloat(blockchainEvent.ticketPrice),
+              available: availableSeats.length,
+              total: blockchainEvent.maxTickets,
+              category: "Blockchain Event",
+              location: "TBD", // Add location field to smart contract if needed
+              description: "Event created on blockchain",
+              contractAddress: blockchainEvent.contractAddress,
+              organizer: blockchainEvent.organizer,
+              tickets: {
+                original: availableSeats.map(seatNum => ({
+                  id: `orig-${blockchainEvent.id}-${seatNum}`,
+                  seatNumber: seatNum.toString(),
+                  price: parseFloat(blockchainEvent.ticketPrice),
+                  available: true,
+                  type: "General"
+                })),
+                resale: [] // TODO: Load resale tickets from contract
+              }
+            };
+
+            setEvent(formattedEvent);
+            setLoading(false);
+            return;
+          } catch (blockchainError) {
+            console.log('Event not found on blockchain, falling back to sample data:', blockchainError);
+          }
+        }
+
+        // Fallback to sample data if blockchain loading fails
+        const foundEvent = sampleEvents.find(e => e.id === parseInt(eventId));
+        setEvent(foundEvent);
+        setLoading(false);
+
+      } catch (error) {
+        console.error('Error loading event:', error);
+        setLoading(false);
+      }
+    };
+
+    loadEventFromBlockchain();
   }, [eventId]);
 
   const getAllTickets = () => {

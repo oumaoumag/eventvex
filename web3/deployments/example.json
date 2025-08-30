@@ -1,0 +1,22 @@
+{
+  "network": "baseSepolia",
+  "chainId": "84532",
+  "deployer": "0x1234567890123456789012345678901234567890",
+  "timestamp": "2024-01-01T00:00:00.000Z",
+  "contracts": {
+    "EventFactory": {
+      "address": "0x1234567890123456789012345678901234567890",
+      "constructorArgs": [
+        "0x1234567890123456789012345678901234567890"
+      ],
+      "verified": true
+    }
+  },
+  "gasUsed": {
+    "EventFactory": "2500000"
+  },
+  "blockNumber": 1000000,
+  "transactionHashes": {
+    "EventFactory": "0x1234567890123456789012345678901234567890123456789012345678901234"
+  }
+}

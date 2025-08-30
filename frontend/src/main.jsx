@@ -8,11 +8,11 @@ import Hero from './pages/Hero';
 import EventList from './pages/EventList';
 import EventDetails from './pages/EventDetails';
 import Qrcode from './pages/Qrcode';
-import Chatbit from './pages/Chatbit';
 import Footer from './components/Footer';
 import Ticketsell from './pages/Ticketsell';
 import MintNFT from './pages/MintNFT';
 import Ticket from './pages/Ticket';
+import Collection from './pages/Collection';
 import Teams from './pages/Teams';
 import Layout from './Layout';
 import './index.css';
@@ -59,6 +59,10 @@ const router = createBrowserRouter([
     element: <Layout><Ticket /></Layout>,
   },
   {
+    path: "collection",
+    element: <Layout><Collection /></Layout>,
+  },
+  {
     path: "teams",
     element: <Layout><Teams /></Layout>,
   },
@@ -74,18 +78,14 @@ const router = createBrowserRouter([
     path: "event",
     element: <Layout><EventList /></Layout>,
   },
-  {
-    path: "mint",
-    element: <Layout><MintNFT /></Layout>,
-  },
+  // {
+  //   path: "mint",
+  //   element: <Layout><MintNFT /></Layout>,
+  // },
 
   {
     path: "event-details",
     element: <Layout><EventDetails /></Layout>,
-  },
-  {
-    path: "chatbit",
-    element: <Chatbit />,
   },
 
   {

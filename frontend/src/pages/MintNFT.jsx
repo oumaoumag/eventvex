@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import contractABI from "../abi/Ticket.json";
+import EventTicketABI from "../abi/EventTicket.json";
 import { Loader2 } from 'lucide-react';
 import {
   connectWallet,
@@ -9,9 +9,10 @@ import {
   setupWalletListeners,
   formatWalletAddress
 } from '../utils/walletUtils';
-import Chatbit from './Chatbit';
+import { getActiveEvents } from '../utils/contractIntegration';
 
-const contractAddress = '0x256ff3b9d3df415a05ba42beb5f186c28e103b2a'; // Replace with your NFT contract address
+// Note: This component now uses the new EventVex smart contract system
+// For POAP/Badge minting, use the EventTicket contracts from active events
 
 const MintNFT = () => {
   const [walletAddress, setWalletAddress] = useState(null);
@@ -172,11 +173,6 @@ const MintNFT = () => {
           )}
         </div>
       </div>
-      <section>
-          <div>
-            <Chatbit />
-          </div>
-        </section>
     </div>
   );
 };

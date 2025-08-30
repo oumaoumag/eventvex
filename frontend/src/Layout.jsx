@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
-import Chatbit from './pages/Chatbit';
 import ThemeToggle from './components/ThemeToggle';
 
 const Layout = ({ children }) => {
@@ -23,7 +22,6 @@ const Layout = ({ children }) => {
       <main className="min-h-[80vh] bg-primary">
         {children}
       </main>
-      <Chatbit />
       <Footer />
     </div>
   );
