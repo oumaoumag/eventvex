@@ -19,6 +19,8 @@ import './index.css';
 import WaitlistPage from './pages/WaitingList';
 import QuantumTicketResale from './pages/QuantamTicketResale';
 import CreateEvent from './pages/CreateEvent';
+import EventTicketListing from './pages/EventTicketListing';
+import TicketPurchasePage from './pages/TicketPurchasePage';
 
 // Initialize theme before rendering the app
 const savedTheme = localStorage.getItem('theme');
@@ -99,6 +101,16 @@ const router = createBrowserRouter([
   {
     path: "resell",
     element: <Layout><QuantumTicketResale /></Layout>
+  },
+
+  {
+    path: "event/:eventId/tickets",
+    element: <Layout><EventTicketListing /></Layout>
+  },
+
+  {
+    path: "ticket-purchase",
+    element: <Layout><TicketPurchasePage /></Layout>
   },
 
   {
