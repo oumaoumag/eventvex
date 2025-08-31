@@ -164,6 +164,35 @@ const TokenizedTicketing = () => {
     return () => clearTimeout(timeoutId);
   }, [isVisible]);
 
+  // Reinitialize map when switching to map view
+  useEffect(() => {
+    if (viewMode === 'map') {
+      // Clean up existing map instance first
+      if (mapInstanceRef.current) {
+        console.log('Cleaning up existing map instance before reinitializing');
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+
+      // Small delay to ensure DOM is ready
+      const timeoutId = setTimeout(() => {
+        if (mapRef.current) {
+          console.log('Switching to map view, reinitializing map...');
+          initializeMap();
+        }
+      }, 200);
+
+      return () => clearTimeout(timeoutId);
+    } else {
+      // When switching away from map view, clean up the map
+      if (mapInstanceRef.current) {
+        console.log('Switching away from map view, cleaning up map instance');
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    }
+  }, [viewMode]);
+
   // Add intersection observer to detect when map container becomes visible
   useEffect(() => {
     if (!mapRef.current) return;
@@ -976,8 +1005,9 @@ const TokenizedTicketing = () => {
             {/* Real Leaflet Map */}
             <div
               ref={mapRef}
+              key={`map-${viewMode}`}
               className="h-[600px] w-full rounded-xl"
-              style={{ minHeight: '600px' }}
+              style={{ minHeight: '600px', position: 'relative', zIndex: 1 }}
             />
 
             {/* No events message overlay */}
@@ -1004,21 +1034,38 @@ const TokenizedTicketing = () => {
                 <Eye className="w-5 h-5" />
                 Map Legend
               </h3>
-              <button
-                onClick={() => {
-                  console.log('Manual map refresh triggered');
-                  if (!mapInstanceRef.current) {
-                    console.log('Map instance missing, reinitializing...');
-                    initializeMap();
-                  } else {
-                    console.log('Map instance exists, updating markers...');
-                    updateMapMarkers();
-                  }
-                }}
-                className="px-3 py-1 text-xs bg-purple-600/20 hover:bg-purple-600/30 rounded border border-purple-500/30 transition-all"
-              >
-                {mapInstanceRef.current ? 'Refresh Markers' : 'Reinit Map'}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    console.log('Manual map refresh triggered');
+                    if (!mapInstanceRef.current) {
+                      console.log('Map instance missing, reinitializing...');
+                      initializeMap();
+                    } else {
+                      console.log('Map instance exists, updating markers...');
+                      updateMapMarkers();
+                    }
+                  }}
+                  className="px-3 py-1 text-xs bg-purple-600/20 hover:bg-purple-600/30 rounded border border-purple-500/30 transition-all"
+                >
+                  {mapInstanceRef.current ? 'Refresh Markers' : 'Reinit Map'}
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('Force map reinitialization');
+                    if (mapInstanceRef.current) {
+                      mapInstanceRef.current.remove();
+                      mapInstanceRef.current = null;
+                    }
+                    setTimeout(() => {
+                      initializeMap();
+                    }, 100);
+                  }}
+                  className="px-3 py-1 text-xs bg-red-600/20 hover:bg-red-600/30 rounded border border-red-500/30 transition-all"
+                >
+                  Force Reinit
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm mb-3">
               <div className="flex items-center gap-2">
@@ -1037,6 +1084,10 @@ const TokenizedTicketing = () => {
             <div className="text-xs text-gray-400 border-t border-purple-500/20 pt-3">
               Debug: {filteredEvents.length} events, User location: {userLocation ? 'Found' : 'Not found'}
               {userLocation && ` (${userLocation[0].toFixed(4)}, ${userLocation[1].toFixed(4)})`}
+              <br />
+              Map instance: {mapInstanceRef.current ? 'Active' : 'Missing'}, View mode: {viewMode}
+              <br />
+              Kenya events: {filteredEvents.filter(e => e.location.includes('Kenya')).length}
             </div>
           </div>
         </div>
