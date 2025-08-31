@@ -42,7 +42,7 @@ module.exports = {
       accounts: [PRIVATE_KEY],
       chainId: 84532,
       gas: 2100000,
-      gasPrice: 8000000000,
+      gasPrice: 1000000000, // Reduced from 8000000000 to 1000000000 (1 gwei)
       verify: {
         etherscan: {
           apiUrl: "https://api-sepolia.basescan.org",
