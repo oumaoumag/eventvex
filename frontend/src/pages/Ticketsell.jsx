@@ -19,7 +19,9 @@ import {
   Users,
   MapPin,
   Navigation,
-  Eye
+  Eye,
+  Map,
+  List
 } from 'lucide-react';
 
 
@@ -43,12 +45,15 @@ const TokenizedTicketing = () => {
 
   // Map and Location States
   const [userLocation, setUserLocation] = useState(null);
-  const [mapCenter, setMapCenter] = useState([39.8283, -98.5795]); // Center of USA as default
+  const [mapCenter, setMapCenter] = useState([-1.2921, 36.8219]); // Center of Kenya as default
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showEventDetails, setShowEventDetails] = useState(false);
   const [locationError, setLocationError] = useState(null);
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
+
+  // View Mode State
+  const [viewMode, setViewMode] = useState('map'); // 'map' or 'list'
 
   useEffect(() => {
     setIsVisible(true);
@@ -373,6 +378,133 @@ const TokenizedTicketing = () => {
           { id: "resale-6-1", seatNumber: "Court-3", originalPrice: 0.6, resalePrice: 0.8, seller: "0x6789...0123", type: "Courtside" },
           { id: "resale-6-2", seatNumber: "Box-2", originalPrice: 0.4, resalePrice: 0.5, seller: "0x7890...1234", type: "Box Seat" }
         ]
+      }
+    },
+    // Kenya Events
+    {
+      id: 7,
+      name: "Nairobi Tech Summit 2025",
+      date: "March 20, 2025",
+      dateObj: new Date("2025-03-20"),
+      price: "0.2 ETH",
+      priceValue: 0.2,
+      available: 250,
+      total: 400,
+      category: "Technology",
+      location: "Nairobi, Kenya",
+      coordinates: [-1.2921, 36.8219],
+      description: "East Africa's premier technology conference featuring blockchain and AI innovations",
+      image: "/src/assets/summit.png",
+      tickets: {
+        original: [
+          { id: "orig-7-1", seatNumber: "VIP-1", price: 0.2, available: true, type: "VIP" },
+          { id: "orig-7-2", seatNumber: "VIP-2", price: 0.2, available: true, type: "VIP" },
+          { id: "orig-7-3", seatNumber: "STD-1", price: 0.1, available: true, type: "Standard" },
+          { id: "orig-7-4", seatNumber: "STD-2", price: 0.1, available: true, type: "Standard" }
+        ],
+        resale: [
+          { id: "resale-7-1", seatNumber: "VIP-3", originalPrice: 0.2, resalePrice: 0.25, seller: "0x1111...2222", type: "VIP" }
+        ]
+      }
+    },
+    {
+      id: 8,
+      name: "Sauti Sol Live Concert",
+      date: "April 12, 2025",
+      dateObj: new Date("2025-04-12"),
+      price: "0.15 ETH",
+      priceValue: 0.15,
+      available: 180,
+      total: 500,
+      category: "Music",
+      location: "Mombasa, Kenya",
+      coordinates: [-4.0435, 39.6682],
+      description: "Exclusive live performance by Kenya's award-winning band Sauti Sol",
+      image: "/src/assets/dr.png",
+      tickets: {
+        original: [
+          { id: "orig-8-1", seatNumber: "FRONT-1", price: 0.15, available: true, type: "Front Row" },
+          { id: "orig-8-2", seatNumber: "FRONT-2", price: 0.15, available: true, type: "Front Row" },
+          { id: "orig-8-3", seatNumber: "GA-1", price: 0.08, available: true, type: "General Admission" },
+          { id: "orig-8-4", seatNumber: "GA-2", price: 0.08, available: true, type: "General Admission" }
+        ],
+        resale: [
+          { id: "resale-8-1", seatNumber: "FRONT-3", originalPrice: 0.15, resalePrice: 0.18, seller: "0x3333...4444", type: "Front Row" }
+        ]
+      }
+    },
+    {
+      id: 9,
+      name: "Kenyan Art & Culture Festival",
+      date: "May 18, 2025",
+      dateObj: new Date("2025-05-18"),
+      price: "0.1 ETH",
+      priceValue: 0.1,
+      available: 300,
+      total: 350,
+      category: "Art",
+      location: "Kisumu, Kenya",
+      coordinates: [-0.0917, 34.7680],
+      description: "Celebrating traditional and contemporary Kenyan art with NFT exhibitions",
+      image: "/src/assets/im.png",
+      tickets: {
+        original: [
+          { id: "orig-9-1", seatNumber: "PREM-1", price: 0.1, available: true, type: "Premium" },
+          { id: "orig-9-2", seatNumber: "PREM-2", price: 0.1, available: true, type: "Premium" },
+          { id: "orig-9-3", seatNumber: "REG-1", price: 0.05, available: true, type: "Regular" },
+          { id: "orig-9-4", seatNumber: "REG-2", price: 0.05, available: true, type: "Regular" }
+        ],
+        resale: []
+      }
+    },
+    {
+      id: 10,
+      name: "Safari Blockchain Conference",
+      date: "June 25, 2025",
+      dateObj: new Date("2025-06-25"),
+      price: "0.25 ETH",
+      priceValue: 0.25,
+      available: 120,
+      total: 200,
+      category: "Finance",
+      location: "Nakuru, Kenya",
+      coordinates: [-0.3031, 36.0800],
+      description: "Exploring blockchain applications in wildlife conservation and sustainable tourism",
+      image: "/src/assets/summit.png",
+      tickets: {
+        original: [
+          { id: "orig-10-1", seatNumber: "EXEC-1", price: 0.25, available: true, type: "Executive" },
+          { id: "orig-10-2", seatNumber: "EXEC-2", price: 0.25, available: true, type: "Executive" },
+          { id: "orig-10-3", seatNumber: "STD-1", price: 0.15, available: true, type: "Standard" },
+          { id: "orig-10-4", seatNumber: "STD-2", price: 0.15, available: true, type: "Standard" }
+        ],
+        resale: [
+          { id: "resale-10-1", seatNumber: "EXEC-3", originalPrice: 0.25, resalePrice: 0.3, seller: "0x5555...6666", type: "Executive" }
+        ]
+      }
+    },
+    {
+      id: 11,
+      name: "Rift Valley Gaming Tournament",
+      date: "July 8, 2025",
+      dateObj: new Date("2025-07-08"),
+      price: "0.12 ETH",
+      priceValue: 0.12,
+      available: 80,
+      total: 150,
+      category: "Gaming",
+      location: "Eldoret, Kenya",
+      coordinates: [0.5143, 35.2698],
+      description: "Kenya's largest esports tournament featuring local and international gamers",
+      image: "/src/assets/dr.png",
+      tickets: {
+        original: [
+          { id: "orig-11-1", seatNumber: "PLAYER-1", price: 0.12, available: true, type: "Player Zone" },
+          { id: "orig-11-2", seatNumber: "PLAYER-2", price: 0.12, available: true, type: "Player Zone" },
+          { id: "orig-11-3", seatNumber: "SPEC-1", price: 0.06, available: true, type: "Spectator" },
+          { id: "orig-11-4", seatNumber: "SPEC-2", price: 0.06, available: true, type: "Spectator" }
+        ],
+        resale: []
       }
     }
   ];
@@ -807,9 +939,40 @@ const TokenizedTicketing = () => {
           </div>
         )}
 
-        {/* Interactive Map */}
-        <div className="max-w-7xl mx-auto">
-          <div className="bg-black/40 backdrop-blur-xl rounded-xl border border-purple-500/30 overflow-hidden">
+        {/* View Mode Tabs */}
+        <div className="max-w-7xl mx-auto mb-6">
+          <div className="flex justify-center">
+            <div className="bg-black/40 backdrop-blur-xl rounded-xl border border-purple-500/30 p-1 flex">
+              <button
+                onClick={() => setViewMode('map')}
+                className={`flex items-center gap-2 px-6 py-3 rounded-lg transition-all duration-300 ${
+                  viewMode === 'map'
+                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Map className="w-4 h-4" />
+                Map View
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex items-center gap-2 px-6 py-3 rounded-lg transition-all duration-300 ${
+                  viewMode === 'list'
+                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <List className="w-4 h-4" />
+                List View
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Map View */}
+        {viewMode === 'map' && (
+          <div className="max-w-7xl mx-auto">
+            <div className="bg-black/40 backdrop-blur-xl rounded-xl border border-purple-500/30 overflow-hidden">
             {/* Real Leaflet Map */}
             <div
               ref={mapRef}
@@ -877,6 +1040,94 @@ const TokenizedTicketing = () => {
             </div>
           </div>
         </div>
+        )}
+
+        {/* List View */}
+        {viewMode === 'list' && (
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredEvents.map((event) => (
+                <div
+                  key={event.id}
+                  className="bg-black/40 backdrop-blur-xl rounded-xl border border-purple-500/30 overflow-hidden
+                    hover:border-purple-400/50 transition-all duration-300 group"
+                >
+                  <div className="relative">
+                    <img
+                      src={event.image}
+                      alt={event.name}
+                      className="w-full h-48 object-cover"
+                    />
+                    <div className="absolute top-3 right-3">
+                      <span className="bg-purple-600/90 text-white px-2 py-1 rounded-full text-xs">
+                        {event.category}
+                      </span>
+                    </div>
+                    <div className="absolute bottom-3 left-3">
+                      <span className="bg-black/70 text-white px-2 py-1 rounded text-xs">
+                        {event.available > 0 ? `${event.available} available` : 'Sold Out'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold text-white mb-2 group-hover:text-purple-300 transition-colors">
+                      {event.name}
+                    </h3>
+
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center gap-2 text-gray-300">
+                        <Calendar className="w-4 h-4" />
+                        <span className="text-sm">{event.date}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-300">
+                        <MapPin className="w-4 h-4" />
+                        <span className="text-sm">{event.location}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-300">
+                        <DollarSign className="w-4 h-4" />
+                        <span className="text-sm font-semibold text-purple-400">{event.price}</span>
+                      </div>
+                    </div>
+
+                    <p className="text-gray-400 text-sm mb-4 line-clamp-2">
+                      {event.description}
+                    </p>
+
+                    <div className="flex gap-2">
+                      <a
+                        href={`/event/${event.id}/tickets`}
+                        className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg
+                          hover:shadow-lg hover:shadow-purple-500/20 transition-all duration-300 text-center text-sm"
+                      >
+                        View Tickets
+                      </a>
+                      {userLocation && (
+                        <div className="flex items-center gap-1 text-xs text-gray-400 px-2">
+                          <Navigation className="w-3 h-3" />
+                          {getDistanceToEvent(event)?.toFixed(1)} km
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {filteredEvents.length === 0 && (
+              <div className="text-center py-12">
+                <div className="text-gray-400 text-lg mb-4">No events found matching your criteria</div>
+                <button
+                  onClick={clearFilters}
+                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg
+                    hover:shadow-lg hover:shadow-purple-500/20 transition-all duration-300"
+                >
+                  Clear Filters
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </section>
     </div>
   );
