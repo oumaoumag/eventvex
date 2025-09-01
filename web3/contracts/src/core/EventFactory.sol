@@ -30,6 +30,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Pausable {
         address eventContract;
         address organizer;
         string title;
+        string metadataURI; // IPFS hash for event metadata
         uint256 eventDate;
         uint256 ticketPrice;
         uint256 maxTickets;
@@ -49,6 +50,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Pausable {
         address indexed organizer,
         address indexed eventContract,
         string title,
+        string metadataURI,
         uint256 eventDate,
         uint256 ticketPrice,
         uint256 maxTickets
@@ -85,6 +87,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Pausable {
         string memory _title,
         string memory _description,
         string memory _location,
+        string memory _metadataURI,
         uint256 _eventDate,
         uint256 _ticketPrice,
         uint256 _maxTickets,
@@ -129,6 +132,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Pausable {
             eventContract: eventContract,
             organizer: msg.sender,
             title: _title,
+            metadataURI: _metadataURI,
             eventDate: _eventDate,
             ticketPrice: _ticketPrice,
             maxTickets: _maxTickets,
@@ -151,6 +155,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Pausable {
             msg.sender,
             eventContract,
             _title,
+            _metadataURI,
             _eventDate,
             _ticketPrice,
             _maxTickets
