@@ -13,6 +13,8 @@
     "node": "hardhat node",
     "deploy:local": "hardhat run scripts/deploy/01-deploy-core.js --network localhost",
     "deploy:testnet": "hardhat run scripts/deploy/01-deploy-core.js --network baseSepolia",
+    "deploy:additional": "hardhat run scripts/deploy/02-deploy-additional.js --network baseSepolia",
+    "deploy:all": "npm run deploy:testnet && npm run deploy:additional",
     "deploy:mainnet": "hardhat run scripts/deploy/01-deploy-core.js --network baseMainnet",
     "verify:testnet": "hardhat run scripts/verify/verify-contracts.js --network baseSepolia",
     "verify:mainnet": "hardhat run scripts/verify/verify-contracts.js --network baseMainnet",
