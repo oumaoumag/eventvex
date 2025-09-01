@@ -25,6 +25,7 @@ contract EventTicket is ERC721, AccessControl, ReentrancyGuard, Pausable {
         string title;
         string description;
         string location;
+        string metadataURI; // IPFS hash for event metadata
         uint256 eventDate;
         uint256 ticketPrice;
         uint256 maxTickets;
@@ -39,6 +40,7 @@ contract EventTicket is ERC721, AccessControl, ReentrancyGuard, Pausable {
         uint256 seatNumber;
         uint256 purchasePrice;
         uint256 purchaseTime;
+        string metadataURI; // IPFS hash for ticket-specific metadata
         bool isUsed;
         bool isForResale;
         uint256 resalePrice;
@@ -93,7 +95,7 @@ contract EventTicket is ERC721, AccessControl, ReentrancyGuard, Pausable {
      * @dev Mint a new ticket for a specific seat
      * @param _seatNumber The seat number to assign
      */
-    function mintTicket(uint256 _seatNumber) external payable nonReentrant whenNotPaused {
+    function mintTicket(uint256 _seatNumber, string memory _ticketMetadataURI) external payable nonReentrant whenNotPaused {
         require(eventInfo.isActive, "Event is not active");
         require(!eventInfo.isCancelled, "Event is cancelled");
         require(_seatNumber < eventInfo.maxTickets, "Invalid seat number");
@@ -109,6 +111,7 @@ contract EventTicket is ERC721, AccessControl, ReentrancyGuard, Pausable {
             seatNumber: _seatNumber,
             purchasePrice: eventInfo.ticketPrice,
             purchaseTime: block.timestamp,
+            metadataURI: _ticketMetadataURI,
             isUsed: false,
             isForResale: false,
             resalePrice: 0,
@@ -327,6 +330,51 @@ contract EventTicket is ERC721, AccessControl, ReentrancyGuard, Pausable {
      */
     function unpause() external onlyRole(PAUSER_ROLE) {
         _unpause();
+    }
+
+    /**
+     * @dev Returns the token URI for a given token ID (IPFS metadata)
+     */
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        require(_exists(tokenId), "Token does not exist");
+
+        // Return ticket-specific metadata URI if available
+        if (bytes(tickets[tokenId].metadataURI).length > 0) {
+            return tickets[tokenId].metadataURI;
+        }
+
+        // Fallback to event metadata URI
+        return eventInfo.metadataURI;
+    }
+
+    /**
+     * @dev Get event metadata URI
+     */
+    function getEventMetadataURI() external view returns (string memory) {
+        return eventInfo.metadataURI;
+    }
+
+    /**
+     * @dev Get ticket metadata URI
+     */
+    function getTicketMetadataURI(uint256 tokenId) external view returns (string memory) {
+        require(_exists(tokenId), "Token does not exist");
+        return tickets[tokenId].metadataURI;
+    }
+
+    /**
+     * @dev Update event metadata URI (organizer only)
+     */
+    function updateEventMetadataURI(string memory _newMetadataURI) external onlyRole(ORGANIZER_ROLE) {
+        eventInfo.metadataURI = _newMetadataURI;
+    }
+
+    /**
+     * @dev Update ticket metadata URI (organizer only)
+     */
+    function updateTicketMetadataURI(uint256 tokenId, string memory _newMetadataURI) external onlyRole(ORGANIZER_ROLE) {
+        require(_exists(tokenId), "Token does not exist");
+        tickets[tokenId].metadataURI = _newMetadataURI;
     }
 
     /**
