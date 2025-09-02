@@ -336,7 +336,7 @@ contract EventTicket is ERC721, AccessControl, ReentrancyGuard, Pausable {
      * @dev Returns the token URI for a given token ID (IPFS metadata)
      */
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
-        require(_exists(tokenId), "Token does not exist");
+        require(_ownerOf(tokenId) != address(0), "Token does not exist");
 
         // Return ticket-specific metadata URI if available
         if (bytes(tickets[tokenId].metadataURI).length > 0) {
@@ -358,7 +358,7 @@ contract EventTicket is ERC721, AccessControl, ReentrancyGuard, Pausable {
      * @dev Get ticket metadata URI
      */
     function getTicketMetadataURI(uint256 tokenId) external view returns (string memory) {
-        require(_exists(tokenId), "Token does not exist");
+        require(_ownerOf(tokenId) != address(0), "Token does not exist");
         return tickets[tokenId].metadataURI;
     }
 
@@ -373,7 +373,7 @@ contract EventTicket is ERC721, AccessControl, ReentrancyGuard, Pausable {
      * @dev Update ticket metadata URI (organizer only)
      */
     function updateTicketMetadataURI(uint256 tokenId, string memory _newMetadataURI) external onlyRole(ORGANIZER_ROLE) {
-        require(_exists(tokenId), "Token does not exist");
+        require(_ownerOf(tokenId) != address(0), "Token does not exist");
         tickets[tokenId].metadataURI = _newMetadataURI;
     }
 
