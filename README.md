@@ -134,6 +134,29 @@ Eventverse is a revolutionary blockchain-based ticketing platform engineered to 
    - Minimal transaction fees
    - Economical for both users and operators
 
+## 📋 Smart Contract Deployment
+
+### Base Sepolia Testnet Addresses
+
+| Contract | Address | Status |
+|----------|---------|--------|
+| EventFactory | `0x4f0fcF4af03569d543d1988d80d358DC40aBd56c` | ✅ Deployed |
+| EventVexAccessControl | `0x869A778E55fC67A930C2fc71D72f06EEacD9B4Ae` | ✅ Deployed |
+| TicketMarketplace | `0xC1CD48117533a0E9cb77d4713f940CeE215D564C` | ✅ Deployed |
+| EventVexPaymaster | `0x03fd90a13AF3032c3414fd01a9Aa619B2fa8BeF9` | ✅ Deployed |
+
+### Contract Sizes
+- EventFactory: 20.455 KiB
+- EventTicket: 13.351 KiB  
+- TicketMarketplace: 9.771 KiB
+- EventVexAccessControl: 8.256 KiB
+- EventVexPaymaster: 3.816 KiB
+
+### Deployment Notes
+- All contracts successfully deployed to Base Sepolia
+- Configuration step requires manual setup due to access control
+- Total deployment cost: ~0.005 ETH
+
 ## 🔮 Vision
 
 Eventverse is redefining event ticketing by combining blockchain security with intuitive user experiences. Stay tuned for exciting updates and new features as we shape the future of event access!

@@ -78,6 +78,7 @@ async function main() {
           "EventVex Test Event",
           "A test event to verify deployment",
           "Virtual Location",
+          "ipfs://test-metadata",
           Math.floor(Date.now() / 1000) + 86400, // 24 hours from now
           ethers.parseEther("0.01"), // 0.01 ETH
           100, // 100 tickets

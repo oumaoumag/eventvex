@@ -165,6 +165,37 @@ const CreateEvent = () => {
 
       alert(`Event created successfully! Event ID: ${result.eventId}. Contract: ${result.eventContract}. ${poapData.enabled ? 'POAP ' : ''}${badgeData.enabled ? 'and attendance badges ' : ''}${(poapData.enabled || badgeData.enabled) ? 'will be available for attendees.' : ''}`);
 
+      // Update hybrid database and notify components
+      try {
+        const { default: hybridDB } = await import('../database/HybridDB.js');
+        if (hybridDB.isInitialized) {
+          await hybridDB.upsertEvent({
+            eventId: result.eventId,
+            eventContract: result.eventContract,
+            organizer: account,
+            title: eventData.name,
+            eventDate: Math.floor(new Date(eventData.date).getTime() / 1000),
+            ticketPrice: ethers.parseEther(eventData.ticketPrice.toString()),
+            maxTickets: parseInt(eventData.totalTickets),
+            isActive: true,
+            createdAt: Math.floor(Date.now() / 1000)
+          });
+        }
+      } catch (dbError) {
+        console.warn('Failed to update hybrid database:', dbError);
+      }
+      
+      // Dispatch custom event to notify other components
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('eventCreated', { 
+          detail: { eventId: result.eventId, eventContract: result.eventContract } 
+        }));
+        console.log('Event creation notification dispatched');
+      }, 1000);
+      
+      // Optional: Navigate to events page or refresh
+      // window.location.reload(); // Uncomment if you prefer full page refresh
+
       // Reset all forms
       setEventData({ name: '', date: '', venue: '', ticketPrice: '', totalTickets: '' });
       setPoapData({ enabled: false, name: '', description: '', image: '', eventUrl: '', city: '', country: '', startDate: '', endDate: '', expiryDate: '' });

@@ -19,7 +19,9 @@ import {
   Users,
   MapPin,
   Navigation,
-  Eye
+  Eye,
+  Map,
+  List
 } from 'lucide-react';
 
 
@@ -43,20 +45,40 @@ const TokenizedTicketing = () => {
 
   // Map and Location States
   const [userLocation, setUserLocation] = useState(null);
-  const [mapCenter, setMapCenter] = useState([39.8283, -98.5795]); // Center of USA as default
+  const [mapCenter, setMapCenter] = useState([-1.2921, 36.8219]); // Center of Kenya as default
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showEventDetails, setShowEventDetails] = useState(false);
   const [locationError, setLocationError] = useState(null);
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
 
+  // View Mode State
+  const [viewMode, setViewMode] = useState('map'); // 'map' or 'list'
+
   useEffect(() => {
     setIsVisible(true);
     getUserLocation();
-    initializeMap();
+    loadBlockchainEvents(); // Load events from blockchain
+
+    // Initialize map only once when component mounts
+    const timer = setTimeout(() => {
+      if (!mapInstanceRef.current) {
+        initializeMap();
+      }
+    }, 100);
+    
+    // Listen for new events created
+    const handleEventCreated = () => {
+      console.log('New event detected, refreshing map...');
+      loadBlockchainEvents();
+    };
+    
+    window.addEventListener('eventCreated', handleEventCreated);
 
     // Cleanup function to properly destroy map when component unmounts
     return () => {
+      clearTimeout(timer);
+      window.removeEventListener('eventCreated', handleEventCreated);
       if (mapInstanceRef.current) {
         console.log('Cleaning up map instance');
         mapInstanceRef.current.remove();
@@ -67,16 +89,21 @@ const TokenizedTicketing = () => {
 
   // Initialize the map
   const initializeMap = async () => {
-    // Clean up any existing map instance first
+    // Prevent multiple initializations
     if (mapInstanceRef.current) {
-      console.log('Cleaning up existing map instance before reinitializing');
-      mapInstanceRef.current.remove();
-      mapInstanceRef.current = null;
+      console.log('Map already initialized, skipping...');
+      return;
     }
 
     if (typeof window !== 'undefined' && mapRef.current) {
       try {
         console.log('Initializing new map instance...');
+
+        // Check if the container already has a map
+        if (mapRef.current._leaflet_id) {
+          console.log('Map container already has Leaflet instance, clearing...');
+          mapRef.current._leaflet_id = undefined;
+        }
 
         // Dynamically import Leaflet to avoid SSR issues
         const L = await import('leaflet');
@@ -123,21 +150,13 @@ const TokenizedTicketing = () => {
     }
   }, [userLocation]);
 
-  // Update markers when filtered events change
+  // Update markers when filtered events or user location changes
   useEffect(() => {
-    if (mapInstanceRef.current) {
-      console.log('Triggering marker update due to filteredEvents/userLocation change');
-      updateMapMarkers();
-    }
-  }, [filteredEvents, userLocation]);
-
-  // Force marker update when map is ready
-  useEffect(() => {
-    if (mapInstanceRef.current && filteredEvents.length > 0) {
-      console.log('Map ready, forcing marker update');
+    if (mapInstanceRef.current && filteredEvents.length >= 0) {
+      console.log('Updating markers due to filteredEvents/userLocation change');
       setTimeout(() => {
         updateMapMarkers();
-      }, 1000);
+      }, 300);
     }
   }, [mapInstanceRef.current, filteredEvents]);
 
@@ -158,6 +177,35 @@ const TokenizedTicketing = () => {
 
     return () => clearTimeout(timeoutId);
   }, [isVisible]);
+
+  // Reinitialize map when switching to map view
+  useEffect(() => {
+    if (viewMode === 'map') {
+      // Clean up existing map instance first
+      if (mapInstanceRef.current) {
+        console.log('Cleaning up existing map instance before reinitializing');
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+
+      // Small delay to ensure DOM is ready
+      const timeoutId = setTimeout(() => {
+        if (mapRef.current) {
+          console.log('Switching to map view, reinitializing map...');
+          initializeMap();
+        }
+      }, 200);
+
+      return () => clearTimeout(timeoutId);
+    } else {
+      // When switching away from map view, clean up the map
+      if (mapInstanceRef.current) {
+        console.log('Switching away from map view, cleaning up map instance');
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    }
+  }, [viewMode]);
 
   // Add intersection observer to detect when map container becomes visible
   useEffect(() => {
@@ -210,176 +258,37 @@ const TokenizedTicketing = () => {
     }
   };
 
-  const sampleEvents = [
-    {
-      id: 1,
-      name: "Blockchain Summit 2025",
-      date: "March 15, 2025",
-      dateObj: new Date("2025-03-15"),
-      price: "0.5 ETH",
-      priceValue: 0.5,
-      available: 150,
-      total: 500,
-      category: "Technology",
-      location: "San Francisco, CA",
-      coordinates: [37.7749, -122.4194],
-      description: "The premier blockchain conference featuring industry leaders",
-      image: "/src/assets/summit.png",
-      tickets: {
-        original: [
-          { id: "orig-1-1", seatNumber: "A1", price: 0.5, available: true, type: "VIP" },
-          { id: "orig-1-2", seatNumber: "A2", price: 0.5, available: true, type: "VIP" },
-          { id: "orig-1-3", seatNumber: "B1", price: 0.3, available: true, type: "General" },
-          { id: "orig-1-4", seatNumber: "B2", price: 0.3, available: true, type: "General" },
-          { id: "orig-1-5", seatNumber: "C1", price: 0.2, available: true, type: "Standard" }
-        ],
-        resale: [
-          { id: "resale-1-1", seatNumber: "A3", originalPrice: 0.5, resalePrice: 0.7, seller: "0x1234...5678", type: "VIP" },
-          { id: "resale-1-2", seatNumber: "B3", originalPrice: 0.3, resalePrice: 0.4, seller: "0x8765...4321", type: "General" }
-        ]
-      }
-    },
-    {
-      id: 2,
-      name: "Web3 Music Festival",
-      date: "April 20, 2025",
-      dateObj: new Date("2025-04-20"),
-      price: "1.2 ETH",
-      priceValue: 1.2,
-      available: 75,
-      total: 1000,
-      category: "Music",
-      location: "Austin, TX",
-      coordinates: [30.2672, -97.7431],
-      description: "Revolutionary music festival powered by Web3 technology",
-      image: "/src/assets/dr.png",
-      tickets: {
-        original: [
-          { id: "orig-2-1", seatNumber: "VIP-1", price: 1.2, available: true, type: "VIP" },
-          { id: "orig-2-2", seatNumber: "VIP-2", price: 1.2, available: true, type: "VIP" },
-          { id: "orig-2-3", seatNumber: "GA-1", price: 0.8, available: true, type: "General Admission" },
-          { id: "orig-2-4", seatNumber: "GA-2", price: 0.8, available: true, type: "General Admission" }
-        ],
-        resale: [
-          { id: "resale-2-1", seatNumber: "VIP-3", originalPrice: 1.2, resalePrice: 1.5, seller: "0x2468...1357", type: "VIP" },
-          { id: "resale-2-2", seatNumber: "GA-3", originalPrice: 0.8, resalePrice: 1.0, seller: "0x1357...2468", type: "General Admission" },
-          { id: "resale-2-3", seatNumber: "VIP-4", originalPrice: 1.2, resalePrice: 1.8, seller: "0x9876...5432", type: "VIP" }
-        ]
-      }
-    },
-    {
-      id: 3,
-      name: "NFT Art Exhibition",
-      date: "May 5, 2025",
-      dateObj: new Date("2025-05-05"),
-      price: "0.8 ETH",
-      priceValue: 0.8,
-      available: 200,
-      total: 300,
-      category: "Art",
-      location: "New York, NY",
-      coordinates: [40.7128, -74.0060],
-      description: "Exclusive showcase of digital art and NFT collections",
-      image: "/src/assets/im.png",
-      url: "/src/pages/qrcode",
-      tickets: {
-        original: [
-          { id: "orig-3-1", seatNumber: "Premium-1", price: 0.8, available: true, type: "Premium" },
-          { id: "orig-3-2", seatNumber: "Premium-2", price: 0.8, available: true, type: "Premium" },
-          { id: "orig-3-3", seatNumber: "Standard-1", price: 0.5, available: true, type: "Standard" },
-          { id: "orig-3-4", seatNumber: "Standard-2", price: 0.5, available: true, type: "Standard" },
-          { id: "orig-3-5", seatNumber: "Student-1", price: 0.3, available: true, type: "Student" }
-        ],
-        resale: [
-          { id: "resale-3-1", seatNumber: "Premium-3", originalPrice: 0.8, resalePrice: 1.0, seller: "0x3456...7890", type: "Premium" },
-          { id: "resale-3-2", seatNumber: "Standard-3", originalPrice: 0.5, resalePrice: 0.6, seller: "0x7890...3456", type: "Standard" }
-        ]
-      }
-    },
-    {
-      id: 4,
-      name: "DeFi Conference 2025",
-      date: "June 10, 2025",
-      dateObj: new Date("2025-06-10"),
-      price: "0.3 ETH",
-      priceValue: 0.3,
-      available: 300,
-      total: 400,
-      category: "Finance",
-      location: "London, UK",
-      coordinates: [51.5074, -0.1278],
-      description: "Decentralized finance summit with top DeFi protocols",
-      image: "/src/assets/summit.png",
-      tickets: {
-        original: [
-          { id: "orig-4-1", seatNumber: "Front-1", price: 0.3, available: true, type: "Front Row" },
-          { id: "orig-4-2", seatNumber: "Front-2", price: 0.3, available: true, type: "Front Row" },
-          { id: "orig-4-3", seatNumber: "Mid-1", price: 0.2, available: true, type: "Middle" },
-          { id: "orig-4-4", seatNumber: "Back-1", price: 0.1, available: true, type: "Back" }
-        ],
-        resale: [
-          { id: "resale-4-1", seatNumber: "Front-3", originalPrice: 0.3, resalePrice: 0.35, seller: "0x4567...8901", type: "Front Row" }
-        ]
-      }
-    },
-    {
-      id: 5,
-      name: "Gaming Metaverse Expo",
-      date: "July 22, 2025",
-      dateObj: new Date("2025-07-22"),
-      price: "0.9 ETH",
-      priceValue: 0.9,
-      available: 50,
-      total: 800,
-      category: "Gaming",
-      location: "Tokyo, Japan",
-      coordinates: [35.6762, 139.6503],
-      description: "Explore the future of gaming in the metaverse",
-      image: "/src/assets/dr.png",
-      tickets: {
-        original: [
-          { id: "orig-5-1", seatNumber: "VR-1", price: 0.9, available: true, type: "VR Experience" },
-          { id: "orig-5-2", seatNumber: "VR-2", price: 0.9, available: true, type: "VR Experience" },
-          { id: "orig-5-3", seatNumber: "GA-1", price: 0.6, available: true, type: "General" },
-          { id: "orig-5-4", seatNumber: "GA-2", price: 0.6, available: true, type: "General" }
-        ],
-        resale: [
-          { id: "resale-5-1", seatNumber: "VR-3", originalPrice: 0.9, resalePrice: 1.1, seller: "0x5678...9012", type: "VR Experience" }
-        ]
-      }
-    },
-    {
-      id: 6,
-      name: "Crypto Sports Championship",
-      date: "August 15, 2025",
-      dateObj: new Date("2025-08-15"),
-      price: "0.6 ETH",
-      priceValue: 0.6,
-      available: 400,
-      total: 600,
-      category: "Sports",
-      location: "Miami, FL",
-      coordinates: [25.7617, -80.1918],
-      description: "First-ever cryptocurrency-powered sports tournament",
-      image: "/src/assets/im.png",
-      tickets: {
-        original: [
-          { id: "orig-6-1", seatNumber: "Court-1", price: 0.6, available: true, type: "Courtside" },
-          { id: "orig-6-2", seatNumber: "Court-2", price: 0.6, available: true, type: "Courtside" },
-          { id: "orig-6-3", seatNumber: "Box-1", price: 0.4, available: true, type: "Box Seat" },
-          { id: "orig-6-4", seatNumber: "Gen-1", price: 0.2, available: true, type: "General" }
-        ],
-        resale: [
-          { id: "resale-6-1", seatNumber: "Court-3", originalPrice: 0.6, resalePrice: 0.8, seller: "0x6789...0123", type: "Courtside" },
-          { id: "resale-6-2", seatNumber: "Box-2", originalPrice: 0.4, resalePrice: 0.5, seller: "0x7890...1234", type: "Box Seat" }
-        ]
-      }
+  // State for blockchain events
+  const [blockchainEvents, setBlockchainEvents] = useState([]);
+  const [loadingEvents, setLoadingEvents] = useState(true);
+  
+  // Load events using hybrid database for fast loading
+  const loadBlockchainEvents = async () => {
+    try {
+      setLoadingEvents(true);
+      const { getActiveEvents } = await import('../utils/contractIntegration');
+      const events = await getActiveEvents();
+      
+      // Transform events using data processor
+      const { transformBlockchainEvent, validateEventData } = await import('../utils/eventDataProcessor');
+      const formattedEvents = events
+        .filter(validateEventData)
+        .map(transformBlockchainEvent);
+      
+      setBlockchainEvents(formattedEvents);
+    } catch (error) {
+      console.error('Error loading events:', error);
+      setBlockchainEvents([]); // No fallback to hardcoded data
+    } finally {
+      setLoadingEvents(false);
     }
-  ];
+  };
+  
+  // Events now loaded from SQLite database - no hardcoded data
 
   // Filter and search logic
   useEffect(() => {
-    let filtered = sampleEvents.filter(event => {
+    let filtered = blockchainEvents.filter(event => {
       // Search term filter
       const matchesSearch = event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            event.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -410,12 +319,12 @@ const TokenizedTicketing = () => {
     });
 
     setFilteredEvents(filtered);
-  }, [searchTerm, filters]);
+  }, [searchTerm, filters, blockchainEvents]);
 
-  // Initialize filtered events
+  // Initialize filtered events when blockchain events load
   useEffect(() => {
-    setFilteredEvents(sampleEvents);
-  }, []);
+    setFilteredEvents(blockchainEvents);
+  }, [blockchainEvents]);
 
   const handleFilterChange = (filterType, value) => {
     setFilters(prev => ({
@@ -715,8 +624,17 @@ const TokenizedTicketing = () => {
 
           <div className="flex items-center space-x-4">
             <span className="text-sm text-gray-400">
-              {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''} found
+              {loadingEvents ? 'Loading...' : `${filteredEvents.length} event${filteredEvents.length !== 1 ? 's' : ''} found`}
             </span>
+            <button
+              onClick={loadBlockchainEvents}
+              className="flex items-center space-x-1 px-3 py-1 text-sm text-blue-400 hover:text-blue-300
+                transition-colors duration-300"
+              disabled={loadingEvents}
+            >
+              <RefreshCw className={`w-3 h-3 ${loadingEvents ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </button>
             <button
               onClick={clearFilters}
               className="flex items-center space-x-1 px-3 py-1 text-sm text-purple-400 hover:text-purple-300
@@ -807,14 +725,46 @@ const TokenizedTicketing = () => {
           </div>
         )}
 
-        {/* Interactive Map */}
-        <div className="max-w-7xl mx-auto">
-          <div className="bg-black/40 backdrop-blur-xl rounded-xl border border-purple-500/30 overflow-hidden">
+        {/* View Mode Tabs */}
+        <div className="max-w-7xl mx-auto mb-6">
+          <div className="flex justify-center">
+            <div className="bg-black/40 backdrop-blur-xl rounded-xl border border-purple-500/30 p-1 flex">
+              <button
+                onClick={() => setViewMode('map')}
+                className={`flex items-center gap-2 px-6 py-3 rounded-lg transition-all duration-300 ${
+                  viewMode === 'map'
+                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Map className="w-4 h-4" />
+                Map View
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex items-center gap-2 px-6 py-3 rounded-lg transition-all duration-300 ${
+                  viewMode === 'list'
+                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <List className="w-4 h-4" />
+                List View
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Map View */}
+        {viewMode === 'map' && (
+          <div className="max-w-7xl mx-auto">
+            <div className="bg-black/40 backdrop-blur-xl rounded-xl border border-purple-500/30 overflow-hidden">
             {/* Real Leaflet Map */}
             <div
               ref={mapRef}
+              key={`map-${viewMode}`}
               className="h-[600px] w-full rounded-xl"
-              style={{ minHeight: '600px' }}
+              style={{ minHeight: '600px', position: 'relative', zIndex: 1 }}
             />
 
             {/* No events message overlay */}
@@ -841,21 +791,38 @@ const TokenizedTicketing = () => {
                 <Eye className="w-5 h-5" />
                 Map Legend
               </h3>
-              <button
-                onClick={() => {
-                  console.log('Manual map refresh triggered');
-                  if (!mapInstanceRef.current) {
-                    console.log('Map instance missing, reinitializing...');
-                    initializeMap();
-                  } else {
-                    console.log('Map instance exists, updating markers...');
-                    updateMapMarkers();
-                  }
-                }}
-                className="px-3 py-1 text-xs bg-purple-600/20 hover:bg-purple-600/30 rounded border border-purple-500/30 transition-all"
-              >
-                {mapInstanceRef.current ? 'Refresh Markers' : 'Reinit Map'}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    console.log('Manual map refresh triggered');
+                    if (!mapInstanceRef.current) {
+                      console.log('Map instance missing, reinitializing...');
+                      initializeMap();
+                    } else {
+                      console.log('Map instance exists, updating markers...');
+                      updateMapMarkers();
+                    }
+                  }}
+                  className="px-3 py-1 text-xs bg-purple-600/20 hover:bg-purple-600/30 rounded border border-purple-500/30 transition-all"
+                >
+                  {mapInstanceRef.current ? 'Refresh Markers' : 'Reinit Map'}
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('Force map reinitialization');
+                    if (mapInstanceRef.current) {
+                      mapInstanceRef.current.remove();
+                      mapInstanceRef.current = null;
+                    }
+                    setTimeout(() => {
+                      initializeMap();
+                    }, 100);
+                  }}
+                  className="px-3 py-1 text-xs bg-red-600/20 hover:bg-red-600/30 rounded border border-red-500/30 transition-all"
+                >
+                  Force Reinit
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm mb-3">
               <div className="flex items-center gap-2">
@@ -874,9 +841,101 @@ const TokenizedTicketing = () => {
             <div className="text-xs text-gray-400 border-t border-purple-500/20 pt-3">
               Debug: {filteredEvents.length} events, User location: {userLocation ? 'Found' : 'Not found'}
               {userLocation && ` (${userLocation[0].toFixed(4)}, ${userLocation[1].toFixed(4)})`}
+              <br />
+              Map instance: {mapInstanceRef.current ? 'Active' : 'Missing'}, View mode: {viewMode}
+              <br />
+              Kenya events: {filteredEvents.filter(e => e.location.includes('Kenya')).length}
             </div>
           </div>
         </div>
+        )}
+
+        {/* List View */}
+        {viewMode === 'list' && (
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredEvents.map((event) => (
+                <div
+                  key={event.id}
+                  className="bg-black/40 backdrop-blur-xl rounded-xl border border-purple-500/30 overflow-hidden
+                    hover:border-purple-400/50 transition-all duration-300 group"
+                >
+                  <div className="relative">
+                    <img
+                      src={event.image}
+                      alt={event.name}
+                      className="w-full h-48 object-cover"
+                    />
+                    <div className="absolute top-3 right-3">
+                      <span className="bg-purple-600/90 text-white px-2 py-1 rounded-full text-xs">
+                        {event.category}
+                      </span>
+                    </div>
+                    <div className="absolute bottom-3 left-3">
+                      <span className="bg-black/70 text-white px-2 py-1 rounded text-xs">
+                        {event.available > 0 ? `${event.available} available` : 'Sold Out'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold text-white mb-2 group-hover:text-purple-300 transition-colors">
+                      {event.name}
+                    </h3>
+
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center gap-2 text-gray-300">
+                        <Calendar className="w-4 h-4" />
+                        <span className="text-sm">{event.date}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-300">
+                        <MapPin className="w-4 h-4" />
+                        <span className="text-sm">{event.location}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-300">
+                        <DollarSign className="w-4 h-4" />
+                        <span className="text-sm font-semibold text-purple-400">{event.price}</span>
+                      </div>
+                    </div>
+
+                    <p className="text-gray-400 text-sm mb-4 line-clamp-2">
+                      {event.description}
+                    </p>
+
+                    <div className="flex gap-2">
+                      <a
+                        href={`/event/${event.id}/tickets`}
+                        className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg
+                          hover:shadow-lg hover:shadow-purple-500/20 transition-all duration-300 text-center text-sm"
+                      >
+                        View Tickets
+                      </a>
+                      {userLocation && (
+                        <div className="flex items-center gap-1 text-xs text-gray-400 px-2">
+                          <Navigation className="w-3 h-3" />
+                          {getDistanceToEvent(event)?.toFixed(1)} km
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {filteredEvents.length === 0 && (
+              <div className="text-center py-12">
+                <div className="text-gray-400 text-lg mb-4">No events found matching your criteria</div>
+                <button
+                  onClick={clearFilters}
+                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg
+                    hover:shadow-lg hover:shadow-purple-500/20 transition-all duration-300"
+                >
+                  Clear Filters
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </section>
     </div>
   );

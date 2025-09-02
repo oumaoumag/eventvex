@@ -11,8 +11,8 @@ import {
 // Choose the appropriate network (Base Mainnet as default)
 const NETWORK_PARAMS = BASE_MAINNET_PARAMS;
 
-// Replace with your actual contract address and ABI
-const CONTRACT_ADDRESS = "0x256ff3b9d3df415a05ba42beb5f186c28e103b2a";
+// Use environment variable for contract address
+const CONTRACT_ADDRESS = import.meta.env.VITE_EVENT_FACTORY_ADDRESS || "0x4f0fcF4af03569d543d1988d80d358DC40aBd56c";
 const CONTRACT_ABI = [
   "function mint(uint256 quantity) public payable",
   "function totalSupply() public view returns (uint256)",

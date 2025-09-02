@@ -7,8 +7,12 @@ import { ethers } from 'ethers';
 import { connectWallet, switchToBaseSepolia, getCurrentNetwork } from './walletUtils.js';
 
 // Contract ABIs - Import from generated artifacts
-import EventFactoryABI from '../abi/EventFactory.json';
-import EventTicketABI from '../abi/EventTicket.json';
+import EventFactoryArtifact from '../abi/EventFactory.json';
+import EventTicketArtifact from '../abi/EventTicket.json';
+
+// Extract ABIs from artifacts
+const EventFactoryABI = EventFactoryArtifact.abi;
+const EventTicketABI = EventTicketArtifact.abi;
 
 // Environment configuration
 const CHAIN_ID = parseInt(import.meta.env.VITE_CHAIN_ID || '84532');
@@ -80,6 +84,7 @@ export const createEvent = async (eventData) => {
       eventData.name || eventData.title,
       eventData.description || '',
       eventData.venue || eventData.location || '',
+      eventData.metadataURI || '',
       eventDate,
       ticketPriceWei,
       parseInt(eventData.totalTickets || eventData.maxTickets),
@@ -121,28 +126,95 @@ export const createEvent = async (eventData) => {
 };
 
 /**
- * Get all active events
- * @returns {Promise<Array>} Array of active events
+ * Get all events using hybrid database for fast loading
+ * @returns {Promise<Array>} Array of events with full details
  */
 export const getActiveEvents = async () => {
   try {
-    const factory = await getEventFactoryContract(false);
-    const events = await factory.getActiveEvents();
+    // Import hybrid database
+    const { default: hybridDB } = await import('../database/HybridDB.js');
     
-    return events.map(event => ({
-      id: Number(event.eventId),
-      title: event.title,
-      organizer: event.organizer,
-      eventDate: new Date(Number(event.eventDate) * 1000),
-      ticketPrice: ethers.formatEther(event.ticketPrice),
-      maxTickets: Number(event.maxTickets),
-      contractAddress: event.eventContract,
-      isActive: event.isActive,
-      createdAt: new Date(Number(event.createdAt) * 1000)
-    }));
+    // Initialize if not already done
+    if (!hybridDB.isInitialized) {
+      await hybridDB.initialize();
+      
+      // Seed initial events if database is empty
+      const { seedInitialEvents } = await import('./databaseSeeder.js');
+      await seedInitialEvents(hybridDB);
+    }
+    
+    // Get events from hybrid database (fast local cache + blockchain sync)
+    const events = await hybridDB.getEvents({
+      active: true,
+      limit: 50,
+      forceSync: false // Use cache first, sync in background
+    });
+    
+    console.log(`Loaded ${events.length} events from hybrid database`);
+    
+    // If no events in database, try blockchain as fallback
+    if (events.length === 0) {
+      console.log('No events in database, attempting blockchain sync...');
+      try {
+        const factory = await getEventFactoryContract(false);
+        const totalEvents = await factory.getTotalEvents();
+        
+        if (Number(totalEvents) > 0) {
+          const blockchainEvents = [];
+          const maxEvents = Math.min(Number(totalEvents), 10);
+          
+          for (let i = 0; i < maxEvents; i++) {
+            try {
+              const eventData = await factory.getEvent(i);
+              if (eventData.isActive) {
+                let eventDetails = {
+                  eventId: i,
+                  eventContract: eventData.eventContract,
+                  organizer: eventData.organizer,
+                  isActive: eventData.isActive,
+                  title: `Event ${i}`,
+                  eventDate: Math.floor(Date.now() / 1000),
+                  ticketPrice: '1000000000000000', // 0.001 ETH in wei
+                  maxTickets: 100
+                };
+                
+                try {
+                  const eventContract = await getEventTicketContract(eventData.eventContract, false);
+                  const eventInfo = await eventContract.eventInfo();
+                  
+                  eventDetails = {
+                    ...eventDetails,
+                    title: eventInfo.title || `Event ${i}`,
+                    description: eventInfo.description || '',
+                    location: eventInfo.location || 'Virtual Event',
+                    eventDate: Number(eventInfo.eventDate) || Math.floor(Date.now() / 1000),
+                    ticketPrice: eventInfo.ticketPrice?.toString() || '1000000000000000',
+                    maxTickets: Number(eventInfo.maxTickets) || 100
+                  };
+                } catch (detailError) {
+                  console.warn(`Could not fetch details for event ${i}:`, detailError.message);
+                }
+                
+                // Store in database for future use
+                await hybridDB.upsertEvent(eventDetails);
+                blockchainEvents.push(eventDetails);
+              }
+            } catch (error) {
+              console.warn(`Failed to fetch event ${i}:`, error.message);
+            }
+          }
+          
+          return blockchainEvents;
+        }
+      } catch (blockchainError) {
+        console.warn('Blockchain query failed:', blockchainError.message);
+      }
+    }
+    
+    return events;
   } catch (error) {
-    console.error('Error fetching active events:', error);
-    throw new Error(`Failed to fetch events: ${error.message}`);
+    console.error('Error in getActiveEvents:', error);
+    return [];
   }
 };
 
@@ -154,18 +226,31 @@ export const getActiveEvents = async () => {
 export const getEventDetails = async (eventId) => {
   try {
     const factory = await getEventFactoryContract(false);
-    const event = await factory.getEvent(eventId);
+    const eventData = await factory.getEvent(eventId);
+    
+    // Get additional details from the event contract if needed
+    let eventInfo = null;
+    try {
+      const eventContract = await getEventTicketContract(eventData.eventContract, false);
+      eventInfo = await eventContract.eventInfo();
+    } catch (error) {
+      console.warn('Could not fetch detailed event info:', error.message);
+    }
     
     return {
-      id: Number(event.eventId),
-      title: event.title,
-      organizer: event.organizer,
-      eventDate: new Date(Number(event.eventDate) * 1000),
-      ticketPrice: ethers.formatEther(event.ticketPrice),
-      maxTickets: Number(event.maxTickets),
-      contractAddress: event.eventContract,
-      isActive: event.isActive,
-      createdAt: new Date(Number(event.createdAt) * 1000)
+      id: eventId,
+      contractAddress: eventData.eventContract,
+      organizer: eventData.organizer,
+      isActive: eventData.isActive,
+      // Add event info if available
+      ...(eventInfo && {
+        title: eventInfo.title,
+        description: eventInfo.description,
+        location: eventInfo.location,
+        eventDate: new Date(Number(eventInfo.eventDate) * 1000),
+        ticketPrice: ethers.formatEther(eventInfo.ticketPrice),
+        maxTickets: Number(eventInfo.maxTickets)
+      })
     };
   } catch (error) {
     console.error('Error fetching event details:', error);
