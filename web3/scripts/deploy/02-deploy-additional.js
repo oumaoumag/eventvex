@@ -2,6 +2,23 @@ const { ethers, network } = require("hardhat");
 const { saveDeployment, loadDeployment } = require("../utils/deployment");
 const { verify } = require("../utils/verify");
 
+// Retry utility function
+async function deployWithRetry(contractFactory, args = [], retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      console.log(`   Attempt ${i + 1}/${retries}...`);
+      const contract = await contractFactory.deploy(...args);
+      await contract.waitForDeployment();
+      return contract;
+    } catch (error) {
+      console.log(`   ❌ Attempt ${i + 1} failed:`, error.message);
+      if (i === retries - 1) throw error;
+      console.log(`   ⏳ Waiting 5 seconds before retry...`);
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+  }
+}
+
 async function main() {
   console.log("🚀 Deploying Additional EventVex Contracts");
   console.log("==========================================");
@@ -40,8 +57,7 @@ async function main() {
     // 1. Deploy EventVexAccessControl
     console.log("\n📦 Deploying EventVexAccessControl...");
     const AccessControl = await ethers.getContractFactory("EventVexAccessControl");
-    const accessControl = await AccessControl.deploy();
-    await accessControl.waitForDeployment();
+    const accessControl = await deployWithRetry(AccessControl, []);
     
     const accessControlAddress = await accessControl.getAddress();
     console.log("✅ EventVexAccessControl deployed to:", accessControlAddress);
@@ -55,8 +71,7 @@ async function main() {
     // 2. Deploy TicketMarketplace
     console.log("\n📦 Deploying TicketMarketplace...");
     const Marketplace = await ethers.getContractFactory("TicketMarketplace");
-    const marketplace = await Marketplace.deploy(platformFeeRecipient, eventFactoryAddress);
-    await marketplace.waitForDeployment();
+    const marketplace = await deployWithRetry(Marketplace, [platformFeeRecipient, eventFactoryAddress]);
     
     const marketplaceAddress = await marketplace.getAddress();
     console.log("✅ TicketMarketplace deployed to:", marketplaceAddress);
@@ -70,8 +85,7 @@ async function main() {
     // 3. Deploy EventVexPaymaster
     console.log("\n📦 Deploying EventVexPaymaster...");
     const Paymaster = await ethers.getContractFactory("EventVexPaymaster");
-    const paymaster = await Paymaster.deploy(eventFactoryAddress);
-    await paymaster.waitForDeployment();
+    const paymaster = await deployWithRetry(Paymaster, [eventFactoryAddress]);
     
     const paymasterAddress = await paymaster.getAddress();
     console.log("✅ EventVexPaymaster deployed to:", paymasterAddress);
