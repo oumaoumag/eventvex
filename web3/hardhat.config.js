@@ -20,7 +20,6 @@ module.exports = {
         enabled: true,
         runs: 200,
       },
-      viaIR: true,
     },
   },
   
@@ -42,7 +41,11 @@ module.exports = {
       accounts: [PRIVATE_KEY],
       chainId: 84532,
       gas: 2100000,
-      gasPrice: 1000000000, // Reduced from 8000000000 to 1000000000 (1 gwei)
+      gasPrice: 1000000000,
+      timeout: 60000,
+      httpHeaders: {
+        "User-Agent": "hardhat"
+      },
       verify: {
         etherscan: {
           apiUrl: "https://api-sepolia.basescan.org",
@@ -104,7 +107,6 @@ module.exports = {
     disambiguatePaths: false,
     runOnCompile: true,
     strict: true,
-    only: [":EventFactory$", ":EventTicket$", ":TicketMarketplace$"],
   },
   
   typechain: {
