@@ -262,339 +262,33 @@ const TokenizedTicketing = () => {
   const [blockchainEvents, setBlockchainEvents] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
   
-  // Load events from blockchain
+  // Load events using hybrid database for fast loading
   const loadBlockchainEvents = async () => {
     try {
       setLoadingEvents(true);
       const { getActiveEvents } = await import('../utils/contractIntegration');
       const events = await getActiveEvents();
       
-      // Convert blockchain events to map format
-      const formattedEvents = events.map((event, index) => ({
-        id: event.id || index,
-        name: event.title || `Event ${event.id}`,
-        date: event.eventDate ? new Date(event.eventDate).toLocaleDateString() : 'TBD',
-        dateObj: event.eventDate ? new Date(event.eventDate) : new Date(),
-        price: event.ticketPrice ? `${event.ticketPrice} ETH` : '0 ETH',
-        priceValue: parseFloat(event.ticketPrice || 0),
-        available: event.maxTickets || 0,
-        total: event.maxTickets || 0,
-        category: "Blockchain",
-        location: "Virtual Event", // Default since location isn't in basic contract
-        coordinates: [37.7749 + (Math.random() - 0.5) * 0.1, -122.4194 + (Math.random() - 0.5) * 0.1], // Random coordinates near SF
-        description: `Blockchain event created by ${event.organizer}`,
-        contractAddress: event.contractAddress,
-        organizer: event.organizer
-      }));
+      // Transform events using data processor
+      const { transformBlockchainEvent, validateEventData } = await import('../utils/eventDataProcessor');
+      const formattedEvents = events
+        .filter(validateEventData)
+        .map(transformBlockchainEvent);
       
       setBlockchainEvents(formattedEvents);
     } catch (error) {
-      console.error('Error loading blockchain events:', error);
-      // Fallback to sample events if blockchain fails
-      setBlockchainEvents(sampleEvents);
+      console.error('Error loading events:', error);
+      setBlockchainEvents([]); // No fallback to hardcoded data
     } finally {
       setLoadingEvents(false);
     }
   };
   
-  const sampleEvents = [
-    {
-      id: 1,
-      name: "Blockchain Summit 2025",
-      date: "March 15, 2025",
-      dateObj: new Date("2025-03-15"),
-      price: "0.5 ETH",
-      priceValue: 0.5,
-      available: 150,
-      total: 500,
-      category: "Technology",
-      location: "San Francisco, CA",
-      coordinates: [37.7749, -122.4194],
-      description: "The premier blockchain conference featuring industry leaders",
-      image: "/src/assets/summit.png",
-      tickets: {
-        original: [
-          { id: "orig-1-1", seatNumber: "A1", price: 0.5, available: true, type: "VIP" },
-          { id: "orig-1-2", seatNumber: "A2", price: 0.5, available: true, type: "VIP" },
-          { id: "orig-1-3", seatNumber: "B1", price: 0.3, available: true, type: "General" },
-          { id: "orig-1-4", seatNumber: "B2", price: 0.3, available: true, type: "General" },
-          { id: "orig-1-5", seatNumber: "C1", price: 0.2, available: true, type: "Standard" }
-        ],
-        resale: [
-          { id: "resale-1-1", seatNumber: "A3", originalPrice: 0.5, resalePrice: 0.7, seller: "0x1234...5678", type: "VIP" },
-          { id: "resale-1-2", seatNumber: "B3", originalPrice: 0.3, resalePrice: 0.4, seller: "0x8765...4321", type: "General" }
-        ]
-      }
-    },
-    {
-      id: 2,
-      name: "Web3 Music Festival",
-      date: "April 20, 2025",
-      dateObj: new Date("2025-04-20"),
-      price: "1.2 ETH",
-      priceValue: 1.2,
-      available: 75,
-      total: 1000,
-      category: "Music",
-      location: "Austin, TX",
-      coordinates: [30.2672, -97.7431],
-      description: "Revolutionary music festival powered by Web3 technology",
-      image: "/src/assets/dr.png",
-      tickets: {
-        original: [
-          { id: "orig-2-1", seatNumber: "VIP-1", price: 1.2, available: true, type: "VIP" },
-          { id: "orig-2-2", seatNumber: "VIP-2", price: 1.2, available: true, type: "VIP" },
-          { id: "orig-2-3", seatNumber: "GA-1", price: 0.8, available: true, type: "General Admission" },
-          { id: "orig-2-4", seatNumber: "GA-2", price: 0.8, available: true, type: "General Admission" }
-        ],
-        resale: [
-          { id: "resale-2-1", seatNumber: "VIP-3", originalPrice: 1.2, resalePrice: 1.5, seller: "0x2468...1357", type: "VIP" },
-          { id: "resale-2-2", seatNumber: "GA-3", originalPrice: 0.8, resalePrice: 1.0, seller: "0x1357...2468", type: "General Admission" },
-          { id: "resale-2-3", seatNumber: "VIP-4", originalPrice: 1.2, resalePrice: 1.8, seller: "0x9876...5432", type: "VIP" }
-        ]
-      }
-    },
-    {
-      id: 3,
-      name: "NFT Art Exhibition",
-      date: "May 5, 2025",
-      dateObj: new Date("2025-05-05"),
-      price: "0.8 ETH",
-      priceValue: 0.8,
-      available: 200,
-      total: 300,
-      category: "Art",
-      location: "New York, NY",
-      coordinates: [40.7128, -74.0060],
-      description: "Exclusive showcase of digital art and NFT collections",
-      image: "/src/assets/im.png",
-      url: "/src/pages/qrcode",
-      tickets: {
-        original: [
-          { id: "orig-3-1", seatNumber: "Premium-1", price: 0.8, available: true, type: "Premium" },
-          { id: "orig-3-2", seatNumber: "Premium-2", price: 0.8, available: true, type: "Premium" },
-          { id: "orig-3-3", seatNumber: "Standard-1", price: 0.5, available: true, type: "Standard" },
-          { id: "orig-3-4", seatNumber: "Standard-2", price: 0.5, available: true, type: "Standard" },
-          { id: "orig-3-5", seatNumber: "Student-1", price: 0.3, available: true, type: "Student" }
-        ],
-        resale: [
-          { id: "resale-3-1", seatNumber: "Premium-3", originalPrice: 0.8, resalePrice: 1.0, seller: "0x3456...7890", type: "Premium" },
-          { id: "resale-3-2", seatNumber: "Standard-3", originalPrice: 0.5, resalePrice: 0.6, seller: "0x7890...3456", type: "Standard" }
-        ]
-      }
-    },
-    {
-      id: 4,
-      name: "DeFi Conference 2025",
-      date: "June 10, 2025",
-      dateObj: new Date("2025-06-10"),
-      price: "0.3 ETH",
-      priceValue: 0.3,
-      available: 300,
-      total: 400,
-      category: "Finance",
-      location: "London, UK",
-      coordinates: [51.5074, -0.1278],
-      description: "Decentralized finance summit with top DeFi protocols",
-      image: "/src/assets/summit.png",
-      tickets: {
-        original: [
-          { id: "orig-4-1", seatNumber: "Front-1", price: 0.3, available: true, type: "Front Row" },
-          { id: "orig-4-2", seatNumber: "Front-2", price: 0.3, available: true, type: "Front Row" },
-          { id: "orig-4-3", seatNumber: "Mid-1", price: 0.2, available: true, type: "Middle" },
-          { id: "orig-4-4", seatNumber: "Back-1", price: 0.1, available: true, type: "Back" }
-        ],
-        resale: [
-          { id: "resale-4-1", seatNumber: "Front-3", originalPrice: 0.3, resalePrice: 0.35, seller: "0x4567...8901", type: "Front Row" }
-        ]
-      }
-    },
-    {
-      id: 5,
-      name: "Gaming Metaverse Expo",
-      date: "July 22, 2025",
-      dateObj: new Date("2025-07-22"),
-      price: "0.9 ETH",
-      priceValue: 0.9,
-      available: 50,
-      total: 800,
-      category: "Gaming",
-      location: "Tokyo, Japan",
-      coordinates: [35.6762, 139.6503],
-      description: "Explore the future of gaming in the metaverse",
-      image: "/src/assets/dr.png",
-      tickets: {
-        original: [
-          { id: "orig-5-1", seatNumber: "VR-1", price: 0.9, available: true, type: "VR Experience" },
-          { id: "orig-5-2", seatNumber: "VR-2", price: 0.9, available: true, type: "VR Experience" },
-          { id: "orig-5-3", seatNumber: "GA-1", price: 0.6, available: true, type: "General" },
-          { id: "orig-5-4", seatNumber: "GA-2", price: 0.6, available: true, type: "General" }
-        ],
-        resale: [
-          { id: "resale-5-1", seatNumber: "VR-3", originalPrice: 0.9, resalePrice: 1.1, seller: "0x5678...9012", type: "VR Experience" }
-        ]
-      }
-    },
-    {
-      id: 6,
-      name: "Crypto Sports Championship",
-      date: "August 15, 2025",
-      dateObj: new Date("2025-08-15"),
-      price: "0.6 ETH",
-      priceValue: 0.6,
-      available: 400,
-      total: 600,
-      category: "Sports",
-      location: "Miami, FL",
-      coordinates: [25.7617, -80.1918],
-      description: "First-ever cryptocurrency-powered sports tournament",
-      image: "/src/assets/im.png",
-      tickets: {
-        original: [
-          { id: "orig-6-1", seatNumber: "Court-1", price: 0.6, available: true, type: "Courtside" },
-          { id: "orig-6-2", seatNumber: "Court-2", price: 0.6, available: true, type: "Courtside" },
-          { id: "orig-6-3", seatNumber: "Box-1", price: 0.4, available: true, type: "Box Seat" },
-          { id: "orig-6-4", seatNumber: "Gen-1", price: 0.2, available: true, type: "General" }
-        ],
-        resale: [
-          { id: "resale-6-1", seatNumber: "Court-3", originalPrice: 0.6, resalePrice: 0.8, seller: "0x6789...0123", type: "Courtside" },
-          { id: "resale-6-2", seatNumber: "Box-2", originalPrice: 0.4, resalePrice: 0.5, seller: "0x7890...1234", type: "Box Seat" }
-        ]
-      }
-    },
-    // Kenya Events
-    {
-      id: 7,
-      name: "Nairobi Tech Summit 2025",
-      date: "March 20, 2025",
-      dateObj: new Date("2025-03-20"),
-      price: "0.2 ETH",
-      priceValue: 0.2,
-      available: 250,
-      total: 400,
-      category: "Technology",
-      location: "Nairobi, Kenya",
-      coordinates: [-1.2921, 36.8219],
-      description: "East Africa's premier technology conference featuring blockchain and AI innovations",
-      image: "/src/assets/summit.png",
-      tickets: {
-        original: [
-          { id: "orig-7-1", seatNumber: "VIP-1", price: 0.2, available: true, type: "VIP" },
-          { id: "orig-7-2", seatNumber: "VIP-2", price: 0.2, available: true, type: "VIP" },
-          { id: "orig-7-3", seatNumber: "STD-1", price: 0.1, available: true, type: "Standard" },
-          { id: "orig-7-4", seatNumber: "STD-2", price: 0.1, available: true, type: "Standard" }
-        ],
-        resale: [
-          { id: "resale-7-1", seatNumber: "VIP-3", originalPrice: 0.2, resalePrice: 0.25, seller: "0x1111...2222", type: "VIP" }
-        ]
-      }
-    },
-    {
-      id: 8,
-      name: "Sauti Sol Live Concert",
-      date: "April 12, 2025",
-      dateObj: new Date("2025-04-12"),
-      price: "0.15 ETH",
-      priceValue: 0.15,
-      available: 180,
-      total: 500,
-      category: "Music",
-      location: "Mombasa, Kenya",
-      coordinates: [-4.0435, 39.6682],
-      description: "Exclusive live performance by Kenya's award-winning band Sauti Sol",
-      image: "/src/assets/dr.png",
-      tickets: {
-        original: [
-          { id: "orig-8-1", seatNumber: "FRONT-1", price: 0.15, available: true, type: "Front Row" },
-          { id: "orig-8-2", seatNumber: "FRONT-2", price: 0.15, available: true, type: "Front Row" },
-          { id: "orig-8-3", seatNumber: "GA-1", price: 0.08, available: true, type: "General Admission" },
-          { id: "orig-8-4", seatNumber: "GA-2", price: 0.08, available: true, type: "General Admission" }
-        ],
-        resale: [
-          { id: "resale-8-1", seatNumber: "FRONT-3", originalPrice: 0.15, resalePrice: 0.18, seller: "0x3333...4444", type: "Front Row" }
-        ]
-      }
-    },
-    {
-      id: 9,
-      name: "Kenyan Art & Culture Festival",
-      date: "May 18, 2025",
-      dateObj: new Date("2025-05-18"),
-      price: "0.1 ETH",
-      priceValue: 0.1,
-      available: 300,
-      total: 350,
-      category: "Art",
-      location: "Kisumu, Kenya",
-      coordinates: [-0.0917, 34.7680],
-      description: "Celebrating traditional and contemporary Kenyan art with NFT exhibitions",
-      image: "/src/assets/im.png",
-      tickets: {
-        original: [
-          { id: "orig-9-1", seatNumber: "PREM-1", price: 0.1, available: true, type: "Premium" },
-          { id: "orig-9-2", seatNumber: "PREM-2", price: 0.1, available: true, type: "Premium" },
-          { id: "orig-9-3", seatNumber: "REG-1", price: 0.05, available: true, type: "Regular" },
-          { id: "orig-9-4", seatNumber: "REG-2", price: 0.05, available: true, type: "Regular" }
-        ],
-        resale: []
-      }
-    },
-    {
-      id: 10,
-      name: "Safari Blockchain Conference",
-      date: "June 25, 2025",
-      dateObj: new Date("2025-06-25"),
-      price: "0.25 ETH",
-      priceValue: 0.25,
-      available: 120,
-      total: 200,
-      category: "Finance",
-      location: "Nakuru, Kenya",
-      coordinates: [-0.3031, 36.0800],
-      description: "Exploring blockchain applications in wildlife conservation and sustainable tourism",
-      image: "/src/assets/summit.png",
-      tickets: {
-        original: [
-          { id: "orig-10-1", seatNumber: "EXEC-1", price: 0.25, available: true, type: "Executive" },
-          { id: "orig-10-2", seatNumber: "EXEC-2", price: 0.25, available: true, type: "Executive" },
-          { id: "orig-10-3", seatNumber: "STD-1", price: 0.15, available: true, type: "Standard" },
-          { id: "orig-10-4", seatNumber: "STD-2", price: 0.15, available: true, type: "Standard" }
-        ],
-        resale: [
-          { id: "resale-10-1", seatNumber: "EXEC-3", originalPrice: 0.25, resalePrice: 0.3, seller: "0x5555...6666", type: "Executive" }
-        ]
-      }
-    },
-    {
-      id: 11,
-      name: "Rift Valley Gaming Tournament",
-      date: "July 8, 2025",
-      dateObj: new Date("2025-07-08"),
-      price: "0.12 ETH",
-      priceValue: 0.12,
-      available: 80,
-      total: 150,
-      category: "Gaming",
-      location: "Eldoret, Kenya",
-      coordinates: [0.5143, 35.2698],
-      description: "Kenya's largest esports tournament featuring local and international gamers",
-      image: "/src/assets/dr.png",
-      tickets: {
-        original: [
-          { id: "orig-11-1", seatNumber: "PLAYER-1", price: 0.12, available: true, type: "Player Zone" },
-          { id: "orig-11-2", seatNumber: "PLAYER-2", price: 0.12, available: true, type: "Player Zone" },
-          { id: "orig-11-3", seatNumber: "SPEC-1", price: 0.06, available: true, type: "Spectator" },
-          { id: "orig-11-4", seatNumber: "SPEC-2", price: 0.06, available: true, type: "Spectator" }
-        ],
-        resale: []
-      }
-    }
-  ];
+  // Events now loaded from SQLite database - no hardcoded data
 
   // Filter and search logic
   useEffect(() => {
-    const eventsToFilter = blockchainEvents.length > 0 ? blockchainEvents : sampleEvents;
-    let filtered = eventsToFilter.filter(event => {
+    let filtered = blockchainEvents.filter(event => {
       // Search term filter
       const matchesSearch = event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            event.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -629,8 +323,7 @@ const TokenizedTicketing = () => {
 
   // Initialize filtered events when blockchain events load
   useEffect(() => {
-    const eventsToUse = blockchainEvents.length > 0 ? blockchainEvents : sampleEvents;
-    setFilteredEvents(eventsToUse);
+    setFilteredEvents(blockchainEvents);
   }, [blockchainEvents]);
 
   const handleFilterChange = (filterType, value) => {

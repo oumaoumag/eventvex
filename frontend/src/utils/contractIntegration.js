@@ -126,37 +126,95 @@ export const createEvent = async (eventData) => {
 };
 
 /**
- * Get all events (simplified version)
- * @returns {Promise<Array>} Array of events
+ * Get all events using hybrid database for fast loading
+ * @returns {Promise<Array>} Array of events with full details
  */
 export const getActiveEvents = async () => {
   try {
-    const factory = await getEventFactoryContract(false);
-    const totalEvents = await factory.getTotalEvents();
-    const events = [];
+    // Import hybrid database
+    const { default: hybridDB } = await import('../database/HybridDB.js');
     
-    // Get individual events (limited to prevent gas issues)
-    const maxEvents = Math.min(Number(totalEvents), 10);
-    for (let i = 0; i < maxEvents; i++) {
+    // Initialize if not already done
+    if (!hybridDB.isInitialized) {
+      await hybridDB.initialize();
+      
+      // Seed initial events if database is empty
+      const { seedInitialEvents } = await import('./databaseSeeder.js');
+      await seedInitialEvents(hybridDB);
+    }
+    
+    // Get events from hybrid database (fast local cache + blockchain sync)
+    const events = await hybridDB.getEvents({
+      active: true,
+      limit: 50,
+      forceSync: false // Use cache first, sync in background
+    });
+    
+    console.log(`Loaded ${events.length} events from hybrid database`);
+    
+    // If no events in database, try blockchain as fallback
+    if (events.length === 0) {
+      console.log('No events in database, attempting blockchain sync...');
       try {
-        const eventData = await factory.getEvent(i);
-        if (eventData.isActive) {
-          events.push({
-            id: i,
-            contractAddress: eventData.eventContract,
-            organizer: eventData.organizer,
-            isActive: eventData.isActive
-          });
+        const factory = await getEventFactoryContract(false);
+        const totalEvents = await factory.getTotalEvents();
+        
+        if (Number(totalEvents) > 0) {
+          const blockchainEvents = [];
+          const maxEvents = Math.min(Number(totalEvents), 10);
+          
+          for (let i = 0; i < maxEvents; i++) {
+            try {
+              const eventData = await factory.getEvent(i);
+              if (eventData.isActive) {
+                let eventDetails = {
+                  eventId: i,
+                  eventContract: eventData.eventContract,
+                  organizer: eventData.organizer,
+                  isActive: eventData.isActive,
+                  title: `Event ${i}`,
+                  eventDate: Math.floor(Date.now() / 1000),
+                  ticketPrice: '1000000000000000', // 0.001 ETH in wei
+                  maxTickets: 100
+                };
+                
+                try {
+                  const eventContract = await getEventTicketContract(eventData.eventContract, false);
+                  const eventInfo = await eventContract.eventInfo();
+                  
+                  eventDetails = {
+                    ...eventDetails,
+                    title: eventInfo.title || `Event ${i}`,
+                    description: eventInfo.description || '',
+                    location: eventInfo.location || 'Virtual Event',
+                    eventDate: Number(eventInfo.eventDate) || Math.floor(Date.now() / 1000),
+                    ticketPrice: eventInfo.ticketPrice?.toString() || '1000000000000000',
+                    maxTickets: Number(eventInfo.maxTickets) || 100
+                  };
+                } catch (detailError) {
+                  console.warn(`Could not fetch details for event ${i}:`, detailError.message);
+                }
+                
+                // Store in database for future use
+                await hybridDB.upsertEvent(eventDetails);
+                blockchainEvents.push(eventDetails);
+              }
+            } catch (error) {
+              console.warn(`Failed to fetch event ${i}:`, error.message);
+            }
+          }
+          
+          return blockchainEvents;
         }
-      } catch (error) {
-        console.warn(`Failed to fetch event ${i}:`, error.message);
+      } catch (blockchainError) {
+        console.warn('Blockchain query failed:', blockchainError.message);
       }
     }
     
     return events;
   } catch (error) {
-    console.error('Error fetching active events:', error);
-    throw new Error(`Failed to fetch events: ${error.message}`);
+    console.error('Error in getActiveEvents:', error);
+    return [];
   }
 };
 

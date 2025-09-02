@@ -179,13 +179,16 @@ CREATE TABLE IF NOT EXISTS sync_queue (
     block_number INTEGER
 );
 
--- Search index for full-text search
-CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(
-    content,
-    type, -- 'event', 'user', 'ticket'
-    record_id,
-    tokenize = 'porter'
+-- Simple search index (without FTS5)
+CREATE TABLE IF NOT EXISTS search_index (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    content TEXT NOT NULL,
+    type TEXT NOT NULL, -- 'event', 'user', 'ticket'
+    record_id TEXT NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_search_content ON search_index(content);
+CREATE INDEX IF NOT EXISTS idx_search_type ON search_index(type);
 
 -- Performance indexes
 CREATE INDEX IF NOT EXISTS idx_events_organizer ON events(organizer_address);
@@ -240,7 +243,7 @@ CREATE TRIGGER IF NOT EXISTS update_search_index_events
     AFTER INSERT ON events
     BEGIN
         INSERT INTO search_index(content, type, record_id) 
-        VALUES (NEW.search_text, 'event', NEW.event_id);
+        VALUES (NEW.title || ' ' || COALESCE(NEW.description, '') || ' ' || COALESCE(NEW.location, ''), 'event', NEW.event_id);
     END;
 
 CREATE TRIGGER IF NOT EXISTS update_search_index_events_update
@@ -248,7 +251,7 @@ CREATE TRIGGER IF NOT EXISTS update_search_index_events_update
     BEGIN
         DELETE FROM search_index WHERE type = 'event' AND record_id = OLD.event_id;
         INSERT INTO search_index(content, type, record_id) 
-        VALUES (NEW.search_text, 'event', NEW.event_id);
+        VALUES (NEW.title || ' ' || COALESCE(NEW.description, '') || ' ' || COALESCE(NEW.location, ''), 'event', NEW.event_id);
     END;
 
 -- Views for common queries

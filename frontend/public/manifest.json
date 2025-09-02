@@ -1,0 +1,16 @@
+{
+  "name": "EventVerse",
+  "short_name": "EventVerse",
+  "description": "Secure, transparent event ticketing powered by blockchain technology",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#7c3aed",
+  "icons": [
+    {
+      "src": "/assets/botImage.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "accountAssociation": {
+    "header": "eyJmaWQiOjEwNjI2MTIsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHg4Mjg0ZGVhODcyOTg5QTRmODVGM0Y3ZTg0MDc1M0M1M0E2MEY4NEM5In0",
+    "payload": "eyJkb21haW4iOiJldmVudHZleC1qMXo4LnZlcmNlbC5hcHAifQ",
+    "signature": "MHg1NDgyOTViM2M4NWQ0ZWIwNjUzMzM2NzNkOTFhYTk0YWNiNzgwMWEzZDFjMDk5NDIyNDQ0N2Y2MWEwYmMzMTRlMDhiNmNjMzViZDE3NDE2NGJmNmQwMTg4ZmFhZDZmYmYzODc3YTNlOWZmNjAwMjliMjcxZWU1NGQ1OGFmN2Q1MTFi"
+  },
+  "frame": {
+    "name": "EventVerse",
+    "iconUrl": "https://eventvex-j1z8.vercel.app/assets/botImage.png",
+    "splashImageUrl": "https://eventvex-j1z8.vercel.app/assets/botImage.png",
+    "splashBackgroundColor": "#000000",
+    "homeUrl": "https://eventvex-j1z8.vercel.app"
+  }
+}
