@@ -21,28 +21,19 @@ contract EventFactory is AccessControl, ReentrancyGuard, Pausable {
 
     // Platform configuration
     address public platformFeeRecipient;
-    uint256 public platformFee = 250; // 2.5% in basis points
-    uint256 public organizerRoyalty = 500; // 5% in basis points
+    uint16 public platformFee = 250; // 2.5% in basis points
+    uint16 public organizerRoyalty = 500; // 5% in basis points
 
-    // Event storage
+    // Minimal event storage
     struct EventData {
-        uint256 eventId;
         address eventContract;
         address organizer;
-        string title;
-        string metadataURI; // IPFS hash for event metadata
-        uint256 eventDate;
-        uint256 ticketPrice;
-        uint256 maxTickets;
         bool isActive;
-        uint256 createdAt;
     }
 
     mapping(uint256 => EventData) public events;
     mapping(address => uint256[]) public organizerEvents;
     mapping(address => bool) public isEventContract;
-    
-    uint256[] public allEventIds;
 
     // Events
     event EventCreated(
@@ -57,8 +48,8 @@ contract EventFactory is AccessControl, ReentrancyGuard, Pausable {
     );
     
     event EventDeactivated(uint256 indexed eventId, address indexed organizer);
-    event PlatformFeeUpdated(uint256 oldFee, uint256 newFee);
-    event OrganizerRoyaltyUpdated(uint256 oldRoyalty, uint256 newRoyalty);
+    event PlatformFeeUpdated(uint16 oldFee, uint16 newFee);
+    event OrganizerRoyaltyUpdated(uint16 oldRoyalty, uint16 newRoyalty);
 
     /**
      * @dev Constructor to initialize the factory
@@ -93,11 +84,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Pausable {
         uint256 _maxTickets,
         uint256 _maxResalePrice
     ) external nonReentrant whenNotPaused returns (uint256 eventId, address eventContract) {
-        require(bytes(_title).length > 0, "Title cannot be empty");
-        require(_eventDate > block.timestamp, "Event date must be in future");
-        require(_ticketPrice > 0, "Ticket price must be greater than 0");
-        require(_maxTickets > 0 && _maxTickets <= 10000, "Invalid max tickets");
-        require(_maxResalePrice >= _ticketPrice, "Max resale price too low");
+        require(bytes(_title).length > 0 && _eventDate > block.timestamp && _ticketPrice > 0 && _maxTickets > 0 && _maxTickets <= 10000 && _maxResalePrice >= _ticketPrice, "Invalid parameters");
 
         // Get new event ID
         eventId = _eventIdCounter;
@@ -108,6 +95,7 @@ contract EventFactory is AccessControl, ReentrancyGuard, Pausable {
             title: _title,
             description: _description,
             location: _location,
+            metadataURI: _metadataURI,
             eventDate: _eventDate,
             ticketPrice: _ticketPrice,
             maxTickets: _maxTickets,
@@ -126,29 +114,16 @@ contract EventFactory is AccessControl, ReentrancyGuard, Pausable {
         
         eventContract = address(newEventContract);
 
-        // Store event data
+        // Store minimal event data
         events[eventId] = EventData({
-            eventId: eventId,
             eventContract: eventContract,
             organizer: msg.sender,
-            title: _title,
-            metadataURI: _metadataURI,
-            eventDate: _eventDate,
-            ticketPrice: _ticketPrice,
-            maxTickets: _maxTickets,
-            isActive: true,
-            createdAt: block.timestamp
+            isActive: true
         });
 
         // Update mappings
         organizerEvents[msg.sender].push(eventId);
         isEventContract[eventContract] = true;
-        allEventIds.push(eventId);
-
-        // Grant organizer role if not already granted
-        if (!hasRole(ORGANIZER_ROLE, msg.sender)) {
-            _grantRole(ORGANIZER_ROLE, msg.sender);
-        }
 
         emit EventCreated(
             eventId,
@@ -185,7 +160,6 @@ contract EventFactory is AccessControl, ReentrancyGuard, Pausable {
 
     /**
      * @dev Get event details by ID
-     * @param _eventId The event ID
      */
     function getEvent(uint256 _eventId) external view returns (EventData memory) {
         require(_eventId < _eventIdCounter, "Event does not exist");
@@ -194,68 +168,9 @@ contract EventFactory is AccessControl, ReentrancyGuard, Pausable {
 
     /**
      * @dev Get all events by an organizer
-     * @param _organizer The organizer address
      */
     function getOrganizerEvents(address _organizer) external view returns (uint256[] memory) {
         return organizerEvents[_organizer];
-    }
-
-    /**
-     * @dev Get all active events
-     */
-    function getActiveEvents() external view returns (EventData[] memory) {
-        uint256 activeCount = 0;
-        
-        // Count active events
-        for (uint256 i = 0; i < allEventIds.length; i++) {
-            if (events[allEventIds[i]].isActive) {
-                activeCount++;
-            }
-        }
-
-        // Create array of active events
-        EventData[] memory activeEvents = new EventData[](activeCount);
-        uint256 index = 0;
-        
-        for (uint256 i = 0; i < allEventIds.length; i++) {
-            uint256 eventId = allEventIds[i];
-            if (events[eventId].isActive) {
-                activeEvents[index] = events[eventId];
-                index++;
-            }
-        }
-
-        return activeEvents;
-    }
-
-    /**
-     * @dev Get upcoming events (events that haven't started yet)
-     */
-    function getUpcomingEvents() external view returns (EventData[] memory) {
-        uint256 upcomingCount = 0;
-        
-        // Count upcoming events
-        for (uint256 i = 0; i < allEventIds.length; i++) {
-            EventData memory eventData = events[allEventIds[i]];
-            if (eventData.isActive && eventData.eventDate > block.timestamp) {
-                upcomingCount++;
-            }
-        }
-
-        // Create array of upcoming events
-        EventData[] memory upcomingEvents = new EventData[](upcomingCount);
-        uint256 index = 0;
-        
-        for (uint256 i = 0; i < allEventIds.length; i++) {
-            uint256 eventId = allEventIds[i];
-            EventData memory eventData = events[eventId];
-            if (eventData.isActive && eventData.eventDate > block.timestamp) {
-                upcomingEvents[index] = eventData;
-                index++;
-            }
-        }
-
-        return upcomingEvents;
     }
 
     /**
@@ -267,27 +182,21 @@ contract EventFactory is AccessControl, ReentrancyGuard, Pausable {
 
     /**
      * @dev Update platform fee (only admin)
-     * @param _newFee New platform fee in basis points
      */
-    function updatePlatformFee(uint256 _newFee) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_newFee <= 1000, "Fee cannot exceed 10%"); // Max 10%
-        
-        uint256 oldFee = platformFee;
+    function updatePlatformFee(uint16 _newFee) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_newFee <= 1000, "Fee cannot exceed 10%");
+        uint16 oldFee = platformFee;
         platformFee = _newFee;
-        
         emit PlatformFeeUpdated(oldFee, _newFee);
     }
 
     /**
      * @dev Update organizer royalty (only admin)
-     * @param _newRoyalty New organizer royalty in basis points
      */
-    function updateOrganizerRoyalty(uint256 _newRoyalty) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_newRoyalty <= 1000, "Royalty cannot exceed 10%"); // Max 10%
-        
-        uint256 oldRoyalty = organizerRoyalty;
+    function updateOrganizerRoyalty(uint16 _newRoyalty) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_newRoyalty <= 1000, "Royalty cannot exceed 10%");
+        uint16 oldRoyalty = organizerRoyalty;
         organizerRoyalty = _newRoyalty;
-        
         emit OrganizerRoyaltyUpdated(oldRoyalty, _newRoyalty);
     }
 
@@ -301,17 +210,10 @@ contract EventFactory is AccessControl, ReentrancyGuard, Pausable {
     }
 
     /**
-     * @dev Emergency pause function
+     * @dev Toggle pause state
      */
-    function pause() external onlyRole(PAUSER_ROLE) {
-        _pause();
-    }
-
-    /**
-     * @dev Unpause function
-     */
-    function unpause() external onlyRole(PAUSER_ROLE) {
-        _unpause();
+    function togglePause() external onlyRole(PAUSER_ROLE) {
+        paused() ? _unpause() : _pause();
     }
 
     /**
