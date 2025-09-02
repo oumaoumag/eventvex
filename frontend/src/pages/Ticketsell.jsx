@@ -53,10 +53,17 @@ const TokenizedTicketing = () => {
   useEffect(() => {
     setIsVisible(true);
     getUserLocation();
-    initializeMap();
+
+    // Initialize map only once when component mounts
+    const timer = setTimeout(() => {
+      if (!mapInstanceRef.current) {
+        initializeMap();
+      }
+    }, 100);
 
     // Cleanup function to properly destroy map when component unmounts
     return () => {
+      clearTimeout(timer);
       if (mapInstanceRef.current) {
         console.log('Cleaning up map instance');
         mapInstanceRef.current.remove();
@@ -67,16 +74,21 @@ const TokenizedTicketing = () => {
 
   // Initialize the map
   const initializeMap = async () => {
-    // Clean up any existing map instance first
+    // Prevent multiple initializations
     if (mapInstanceRef.current) {
-      console.log('Cleaning up existing map instance before reinitializing');
-      mapInstanceRef.current.remove();
-      mapInstanceRef.current = null;
+      console.log('Map already initialized, skipping...');
+      return;
     }
 
     if (typeof window !== 'undefined' && mapRef.current) {
       try {
         console.log('Initializing new map instance...');
+
+        // Check if the container already has a map
+        if (mapRef.current._leaflet_id) {
+          console.log('Map container already has Leaflet instance, clearing...');
+          mapRef.current._leaflet_id = undefined;
+        }
 
         // Dynamically import Leaflet to avoid SSR issues
         const L = await import('leaflet');
@@ -123,66 +135,15 @@ const TokenizedTicketing = () => {
     }
   }, [userLocation]);
 
-  // Update markers when filtered events change
+  // Update markers when filtered events or user location changes
   useEffect(() => {
-    if (mapInstanceRef.current) {
-      console.log('Triggering marker update due to filteredEvents/userLocation change');
-      updateMapMarkers();
-    }
-  }, [filteredEvents, userLocation]);
-
-  // Force marker update when map is ready
-  useEffect(() => {
-    if (mapInstanceRef.current && filteredEvents.length > 0) {
-      console.log('Map ready, forcing marker update');
+    if (mapInstanceRef.current && filteredEvents.length >= 0) {
+      console.log('Updating markers due to filteredEvents/userLocation change');
       setTimeout(() => {
         updateMapMarkers();
-      }, 1000);
+      }, 300);
     }
-  }, [mapInstanceRef.current, filteredEvents]);
-
-  // Check if map needs reinitialization when component becomes visible
-  useEffect(() => {
-    const checkAndReinitializeMap = () => {
-      if (mapRef.current && !mapInstanceRef.current) {
-        console.log('Map container exists but map instance is missing, reinitializing...');
-        initializeMap();
-      }
-    };
-
-    // Check immediately
-    checkAndReinitializeMap();
-
-    // Also check after a short delay in case the DOM needs time to settle
-    const timeoutId = setTimeout(checkAndReinitializeMap, 500);
-
-    return () => clearTimeout(timeoutId);
-  }, [isVisible]);
-
-  // Add intersection observer to detect when map container becomes visible
-  useEffect(() => {
-    if (!mapRef.current) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && !mapInstanceRef.current) {
-            console.log('Map container became visible, reinitializing map...');
-            setTimeout(() => {
-              initializeMap();
-            }, 100);
-          }
-        });
-      },
-      { threshold: 0.1 }
-    );
-
-    observer.observe(mapRef.current);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
+  }, [filteredEvents, userLocation]);
 
   // Get user's current location
   const getUserLocation = () => {

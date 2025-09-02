@@ -7,8 +7,12 @@ import { ethers } from 'ethers';
 import { connectWallet, switchToBaseSepolia, getCurrentNetwork } from './walletUtils.js';
 
 // Contract ABIs - Import from generated artifacts
-import EventFactoryABI from '../abi/EventFactory.json';
-import EventTicketABI from '../abi/EventTicket.json';
+import EventFactoryArtifact from '../abi/EventFactory.json';
+import EventTicketArtifact from '../abi/EventTicket.json';
+
+// Extract ABIs from artifacts
+const EventFactoryABI = EventFactoryArtifact.abi;
+const EventTicketABI = EventTicketArtifact.abi;
 
 // Environment configuration
 const CHAIN_ID = parseInt(import.meta.env.VITE_CHAIN_ID || '84532');
@@ -80,6 +84,7 @@ export const createEvent = async (eventData) => {
       eventData.name || eventData.title,
       eventData.description || '',
       eventData.venue || eventData.location || '',
+      eventData.metadataURI || '',
       eventDate,
       ticketPriceWei,
       parseInt(eventData.totalTickets || eventData.maxTickets),
