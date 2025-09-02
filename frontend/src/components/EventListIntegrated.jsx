@@ -32,6 +32,18 @@ const EventListIntegrated = ({ onEventSelect, showPurchaseButton = true }) => {
   // Initial load
   useEffect(() => {
     loadEvents();
+    
+    // Listen for custom event creation events
+    const handleEventCreated = () => {
+      console.log('New event created, refreshing list...');
+      loadEvents();
+    };
+    
+    window.addEventListener('eventCreated', handleEventCreated);
+    
+    return () => {
+      window.removeEventListener('eventCreated', handleEventCreated);
+    };
   }, []);
 
   // Refresh events

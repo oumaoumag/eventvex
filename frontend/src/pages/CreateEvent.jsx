@@ -165,6 +165,14 @@ const CreateEvent = () => {
 
       alert(`Event created successfully! Event ID: ${result.eventId}. Contract: ${result.eventContract}. ${poapData.enabled ? 'POAP ' : ''}${badgeData.enabled ? 'and attendance badges ' : ''}${(poapData.enabled || badgeData.enabled) ? 'will be available for attendees.' : ''}`);
 
+      // Dispatch custom event to notify other components
+      window.dispatchEvent(new CustomEvent('eventCreated', { 
+        detail: { eventId: result.eventId, eventContract: result.eventContract } 
+      }));
+      
+      // Optional: Navigate to events page or refresh
+      // window.location.reload(); // Uncomment if you prefer full page refresh
+
       // Reset all forms
       setEventData({ name: '', date: '', venue: '', ticketPrice: '', totalTickets: '' });
       setPoapData({ enabled: false, name: '', description: '', image: '', eventUrl: '', city: '', country: '', startDate: '', endDate: '', expiryDate: '' });

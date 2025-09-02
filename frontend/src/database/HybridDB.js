@@ -526,8 +526,27 @@ class HybridDB {
       const factoryABI = await import('../abi/EventFactory.json');
       const factory = new ethers.Contract(factoryAddress, factoryABI.abi, provider);
 
-      // Get events from blockchain
-      const events = await factory.getActiveEvents();
+      // Get events from blockchain (using available functions)
+      const totalEvents = await factory.getTotalEvents();
+      const events = [];
+      
+      // Get individual events (limited to prevent gas issues)
+      const maxEvents = Math.min(Number(totalEvents), 10);
+      for (let i = 0; i < maxEvents; i++) {
+        try {
+          const eventData = await factory.getEvent(i);
+          if (eventData.isActive) {
+            events.push({
+              eventId: i,
+              eventContract: eventData.eventContract,
+              organizer: eventData.organizer,
+              isActive: eventData.isActive
+            });
+          }
+        } catch (error) {
+          console.warn(`Failed to fetch event ${i}:`, error.message);
+        }
+      }
 
       // Update local database
       for (const event of events) {

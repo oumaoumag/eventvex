@@ -53,6 +53,7 @@ const TokenizedTicketing = () => {
   useEffect(() => {
     setIsVisible(true);
     getUserLocation();
+    loadBlockchainEvents(); // Load events from blockchain
 
     // Initialize map only once when component mounts
     const timer = setTimeout(() => {
@@ -60,10 +61,19 @@ const TokenizedTicketing = () => {
         initializeMap();
       }
     }, 100);
+    
+    // Listen for new events created
+    const handleEventCreated = () => {
+      console.log('New event detected, refreshing map...');
+      loadBlockchainEvents();
+    };
+    
+    window.addEventListener('eventCreated', handleEventCreated);
 
     // Cleanup function to properly destroy map when component unmounts
     return () => {
       clearTimeout(timer);
+      window.removeEventListener('eventCreated', handleEventCreated);
       if (mapInstanceRef.current) {
         console.log('Cleaning up map instance');
         mapInstanceRef.current.remove();
@@ -171,6 +181,45 @@ const TokenizedTicketing = () => {
     }
   };
 
+  // State for blockchain events
+  const [blockchainEvents, setBlockchainEvents] = useState([]);
+  const [loadingEvents, setLoadingEvents] = useState(true);
+  
+  // Load events from blockchain
+  const loadBlockchainEvents = async () => {
+    try {
+      setLoadingEvents(true);
+      const { getActiveEvents } = await import('../utils/contractIntegration');
+      const events = await getActiveEvents();
+      
+      // Convert blockchain events to map format
+      const formattedEvents = events.map((event, index) => ({
+        id: event.id || index,
+        name: event.title || `Event ${event.id}`,
+        date: event.eventDate ? new Date(event.eventDate).toLocaleDateString() : 'TBD',
+        dateObj: event.eventDate ? new Date(event.eventDate) : new Date(),
+        price: event.ticketPrice ? `${event.ticketPrice} ETH` : '0 ETH',
+        priceValue: parseFloat(event.ticketPrice || 0),
+        available: event.maxTickets || 0,
+        total: event.maxTickets || 0,
+        category: "Blockchain",
+        location: "Virtual Event", // Default since location isn't in basic contract
+        coordinates: [37.7749 + (Math.random() - 0.5) * 0.1, -122.4194 + (Math.random() - 0.5) * 0.1], // Random coordinates near SF
+        description: `Blockchain event created by ${event.organizer}`,
+        contractAddress: event.contractAddress,
+        organizer: event.organizer
+      }));
+      
+      setBlockchainEvents(formattedEvents);
+    } catch (error) {
+      console.error('Error loading blockchain events:', error);
+      // Fallback to sample events if blockchain fails
+      setBlockchainEvents(sampleEvents);
+    } finally {
+      setLoadingEvents(false);
+    }
+  };
+  
   const sampleEvents = [
     {
       id: 1,
@@ -340,7 +389,8 @@ const TokenizedTicketing = () => {
 
   // Filter and search logic
   useEffect(() => {
-    let filtered = sampleEvents.filter(event => {
+    const eventsToFilter = blockchainEvents.length > 0 ? blockchainEvents : sampleEvents;
+    let filtered = eventsToFilter.filter(event => {
       // Search term filter
       const matchesSearch = event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            event.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -371,12 +421,13 @@ const TokenizedTicketing = () => {
     });
 
     setFilteredEvents(filtered);
-  }, [searchTerm, filters]);
+  }, [searchTerm, filters, blockchainEvents]);
 
-  // Initialize filtered events
+  // Initialize filtered events when blockchain events load
   useEffect(() => {
-    setFilteredEvents(sampleEvents);
-  }, []);
+    const eventsToUse = blockchainEvents.length > 0 ? blockchainEvents : sampleEvents;
+    setFilteredEvents(eventsToUse);
+  }, [blockchainEvents]);
 
   const handleFilterChange = (filterType, value) => {
     setFilters(prev => ({
@@ -676,8 +727,17 @@ const TokenizedTicketing = () => {
 
           <div className="flex items-center space-x-4">
             <span className="text-sm text-gray-400">
-              {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''} found
+              {loadingEvents ? 'Loading...' : `${filteredEvents.length} event${filteredEvents.length !== 1 ? 's' : ''} found`}
             </span>
+            <button
+              onClick={loadBlockchainEvents}
+              className="flex items-center space-x-1 px-3 py-1 text-sm text-blue-400 hover:text-blue-300
+                transition-colors duration-300"
+              disabled={loadingEvents}
+            >
+              <RefreshCw className={`w-3 h-3 ${loadingEvents ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </button>
             <button
               onClick={clearFilters}
               className="flex items-center space-x-1 px-3 py-1 text-sm text-purple-400 hover:text-purple-300

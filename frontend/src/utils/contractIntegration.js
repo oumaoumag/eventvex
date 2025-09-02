@@ -126,25 +126,34 @@ export const createEvent = async (eventData) => {
 };
 
 /**
- * Get all active events
- * @returns {Promise<Array>} Array of active events
+ * Get all events (simplified version)
+ * @returns {Promise<Array>} Array of events
  */
 export const getActiveEvents = async () => {
   try {
     const factory = await getEventFactoryContract(false);
-    const events = await factory.getActiveEvents();
+    const totalEvents = await factory.getTotalEvents();
+    const events = [];
     
-    return events.map(event => ({
-      id: Number(event.eventId),
-      title: event.title,
-      organizer: event.organizer,
-      eventDate: new Date(Number(event.eventDate) * 1000),
-      ticketPrice: ethers.formatEther(event.ticketPrice),
-      maxTickets: Number(event.maxTickets),
-      contractAddress: event.eventContract,
-      isActive: event.isActive,
-      createdAt: new Date(Number(event.createdAt) * 1000)
-    }));
+    // Get individual events (limited to prevent gas issues)
+    const maxEvents = Math.min(Number(totalEvents), 10);
+    for (let i = 0; i < maxEvents; i++) {
+      try {
+        const eventData = await factory.getEvent(i);
+        if (eventData.isActive) {
+          events.push({
+            id: i,
+            contractAddress: eventData.eventContract,
+            organizer: eventData.organizer,
+            isActive: eventData.isActive
+          });
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch event ${i}:`, error.message);
+      }
+    }
+    
+    return events;
   } catch (error) {
     console.error('Error fetching active events:', error);
     throw new Error(`Failed to fetch events: ${error.message}`);
@@ -159,18 +168,31 @@ export const getActiveEvents = async () => {
 export const getEventDetails = async (eventId) => {
   try {
     const factory = await getEventFactoryContract(false);
-    const event = await factory.getEvent(eventId);
+    const eventData = await factory.getEvent(eventId);
+    
+    // Get additional details from the event contract if needed
+    let eventInfo = null;
+    try {
+      const eventContract = await getEventTicketContract(eventData.eventContract, false);
+      eventInfo = await eventContract.eventInfo();
+    } catch (error) {
+      console.warn('Could not fetch detailed event info:', error.message);
+    }
     
     return {
-      id: Number(event.eventId),
-      title: event.title,
-      organizer: event.organizer,
-      eventDate: new Date(Number(event.eventDate) * 1000),
-      ticketPrice: ethers.formatEther(event.ticketPrice),
-      maxTickets: Number(event.maxTickets),
-      contractAddress: event.eventContract,
-      isActive: event.isActive,
-      createdAt: new Date(Number(event.createdAt) * 1000)
+      id: eventId,
+      contractAddress: eventData.eventContract,
+      organizer: eventData.organizer,
+      isActive: eventData.isActive,
+      // Add event info if available
+      ...(eventInfo && {
+        title: eventInfo.title,
+        description: eventInfo.description,
+        location: eventInfo.location,
+        eventDate: new Date(Number(eventInfo.eventDate) * 1000),
+        ticketPrice: ethers.formatEther(eventInfo.ticketPrice),
+        maxTickets: Number(eventInfo.maxTickets)
+      })
     };
   } catch (error) {
     console.error('Error fetching event details:', error);

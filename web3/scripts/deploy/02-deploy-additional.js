@@ -96,28 +96,7 @@ async function main() {
       verified: false
     };
     
-    // 4. Setup initial configuration
-    console.log("\n⚙️ Setting up initial configuration...");
-    
-    // Authorize contracts in AccessControl
-    console.log("🔐 Authorizing contracts in AccessControl...");
-    await accessControl.authorizeContract(eventFactoryAddress, true);
-    await accessControl.authorizeContract(marketplaceAddress, true);
-    await accessControl.authorizeContract(paymasterAddress, true);
-    console.log("✅ Contracts authorized in AccessControl");
-    
-    // Add marketplace as authorized contract in paymaster
-    console.log("💳 Authorizing marketplace in Paymaster...");
-    await paymaster.addAuthorizedContract(marketplaceAddress);
-    console.log("✅ Marketplace authorized in Paymaster");
-    
-    // Fund paymaster with initial ETH for gas sponsorship
-    if (network.chainId === 84532n) { // Base Sepolia
-      console.log("💰 Funding Paymaster with initial ETH...");
-      const fundingAmount = ethers.parseEther("0.002"); // 0.002 ETH for testing
-      await paymaster.depositFunds({ value: fundingAmount });
-      console.log(`✅ Paymaster funded with ${ethers.formatEther(fundingAmount)} ETH`);
-    }
+    console.log("\n⚠️ Configuration skipped - run 'npm run configure' separately");
     
     // Calculate gas usage
     const accessControlReceipt = await accessControl.deploymentTransaction().wait();
