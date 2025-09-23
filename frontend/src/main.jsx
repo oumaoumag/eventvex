@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import MiniAppProvider from './components/MiniAppProvider';
 import Home from './pages/Home';
 import Discover from './pages/Discover';
 import Testimonials from './pages/Testimonials';
@@ -121,6 +122,8 @@ const router = createBrowserRouter([
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-        <RouterProvider router={router} />
+    <MiniAppProvider>
+      <RouterProvider router={router} />
+    </MiniAppProvider>
   </React.StrictMode>
 );
