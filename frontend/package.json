@@ -19,6 +19,7 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@ethersproject/providers": "^5.7.2",
+    "@farcaster/miniapp-sdk": "^0.1.10",
     "@headlessui/react": "^2.2.0",
     "@heroicons/react": "^2.2.0",
     "@metamask/detect-provider": "^2.0.0",
