@@ -9,12 +9,12 @@ const Dashboard = () => {
   const pastEvents = [
     {
       id: 1,
-      title: "Tech Conference 2024",
-      date: "2024-01-15",
-      location: "San Francisco, CA",
-      totalTickets: 500,
-      soldTickets: 485,
-      revenue: 48500,
+      title: "Tech Ignite Conference 2024",
+      date: "2025-06-15",
+      location: "Kisumu, Kenya",
+      totalTickets: 300,
+      soldTickets: 285,
+      revenue: 18500,
       status: "ended",
       image: "/api/placeholder/300/200"
     }
