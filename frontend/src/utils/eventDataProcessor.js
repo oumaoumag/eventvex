@@ -10,7 +10,7 @@ import { getIPFSUrl } from './ipfs.js';
  * Transform blockchain event data to standardized format
  */
 export const transformBlockchainEvent = (event, index) => {
-  return {
+  const transformed = {
     id: event.id || event.event_id || index,
     name: event.title || event.name || `Event ${event.id || index}`,
     title: event.title || event.name || `Event ${event.id || index}`,
@@ -23,10 +23,60 @@ export const transformBlockchainEvent = (event, index) => {
     dateObj: event.eventDate ? new Date(event.eventDate) : 
              event.event_date ? new Date(event.event_date * 1000) : new Date(),
     
-    // Price handling
-    price: event.ticketPrice ? `${event.ticketPrice} ETH` : 
-           event.ticket_price ? `${ethers.formatEther(event.ticket_price)} ETH` : '0 ETH',
-    priceValue: parseFloat(event.ticketPrice || ethers.formatEther(event.ticket_price || '0')),
+    // Price handling - handle both string and BigInt formats with debug logs
+    price: (() => {
+      console.log(`💰 Processing price for ${event.title || event.name}:`);
+      console.log('  - ticketPrice:', event.ticketPrice, typeof event.ticketPrice);
+      console.log('  - ticket_price:', event.ticket_price, typeof event.ticket_price);
+      
+      if (event.ticketPrice) {
+        if (typeof event.ticketPrice === 'string' && event.ticketPrice.includes('ETH')) {
+          return event.ticketPrice;
+        }
+        return `${event.ticketPrice} ETH`;
+      }
+      
+      if (event.ticket_price) {
+        try {
+          // Handle string numbers that can't be converted to BigInt
+          if (typeof event.ticket_price === 'string' && event.ticket_price.includes('.')) {
+            console.log('  ⚠️ Converting decimal string to ETH directly:', event.ticket_price);
+            return `${event.ticket_price} ETH`;
+          }
+          const formatted = ethers.formatEther(event.ticket_price);
+          console.log('  ✅ Formatted with ethers:', formatted);
+          return `${formatted} ETH`;
+        } catch (error) {
+          console.log('  ❌ Error formatting price:', error.message);
+          console.log('  🔄 Using raw value:', event.ticket_price);
+          return `${event.ticket_price} ETH`;
+        }
+      }
+      
+      return '0 ETH';
+    })(),
+    priceValue: (() => {
+      try {
+        if (event.ticketPrice) {
+          const value = typeof event.ticketPrice === 'string' ? 
+            event.ticketPrice.replace(' ETH', '') : event.ticketPrice;
+          return parseFloat(value) || 0;
+        }
+        
+        if (event.ticket_price) {
+          // Handle string decimals that can't be converted to BigInt
+          if (typeof event.ticket_price === 'string' && event.ticket_price.includes('.')) {
+            return parseFloat(event.ticket_price) || 0;
+          }
+          return parseFloat(ethers.formatEther(event.ticket_price)) || 0;
+        }
+        
+        return 0;
+      } catch (error) {
+        console.log('  ❌ Error parsing price value:', error.message);
+        return 0;
+      }
+    })(),
     
     // Ticket availability
     available: event.maxTickets || event.max_tickets || 0,
@@ -41,7 +91,12 @@ export const transformBlockchainEvent = (event, index) => {
     // IPFS data
     metadataUri: event.metadata_uri || event.metadataURI,
     imageUri: event.image_uri || event.imageURI,
-    imageUrl: event.image_uri ? getIPFSUrl(event.image_uri) : null,
+    
+    // Image handling - prioritize image_url from database enhancement with fallback
+    image: event.image_url || 
+           (event.image_uri ? getIPFSUrl(event.image_uri) : null) ||
+           (event.cover_image) ||
+           'src/assets/tig.png', // Default fallback image
     
     // Status
     isActive: event.isActive !== undefined ? event.isActive : event.is_active !== undefined ? event.is_active : true,
@@ -52,8 +107,30 @@ export const transformBlockchainEvent = (event, index) => {
     transactionHash: event.transaction_hash,
     
     // Generate coordinates if not provided (for map display)
-    coordinates: event.coordinates || generateCoordinatesFromLocation(event.location || 'Virtual Event')
+    coordinates: (() => {
+      console.log(`🗺️ Processing coordinates for ${event.title || event.name}:`);
+      console.log('  - existing coordinates:', event.coordinates);
+      console.log('  - location:', event.location);
+      
+      if (event.coordinates && Array.isArray(event.coordinates) && event.coordinates.length === 2) {
+        console.log('  ✅ Using existing coordinates:', event.coordinates);
+        return event.coordinates;
+      }
+      
+      const generated = generateCoordinatesFromLocation(event.location || event.title || 'Virtual Event');
+      console.log('  🔄 Generated coordinates:', generated);
+      return generated;
+    })()
   };
+  
+  console.log(`🔄 Transformed event ${transformed.name}:`);
+  console.log('  - Original image_url:', event.image_url);
+  console.log('  - Final image:', transformed.image);
+  console.log('  - Final coordinates:', transformed.coordinates);
+  console.log('  - Final price:', transformed.price);
+  console.log('  - Final priceValue:', transformed.priceValue);
+  
+  return transformed;
 };
 
 /**
@@ -125,11 +202,15 @@ export const transformTicketData = (ticket) => {
  * Validate event data before processing
  */
 export const validateEventData = (event) => {
-  const required = ['name', 'date', 'location'];
-  const missing = required.filter(field => !event[field] && !event[field.replace(/([A-Z])/g, '_$1').toLowerCase()]);
+  // Check for title/name
+  const hasTitle = event.title || event.name;
+  // Check for location (allow empty string, just not undefined/null)
+  const hasLocation = event.location !== undefined && event.location !== null;
+  // Check for date
+  const hasDate = event.event_date || event.eventDate || event.date;
   
-  if (missing.length > 0) {
-    console.warn('Event missing required fields:', missing, event);
+  if (!hasTitle || !hasLocation || !hasDate) {
+    console.warn('Event missing required fields:', { hasTitle, hasLocation, hasDate }, event);
     return false;
   }
   
