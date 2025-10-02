@@ -243,6 +243,16 @@ const TokenizedTicketing = () => {
       console.log('  📝 Raw events from database:', events?.length || 0, 'events');
       console.log('  🔍 First event sample:', events?.[0]);
       
+      // Debug: Check the actual price format in raw events
+      if (events && events.length > 0) {
+        console.log('  💰 Price debugging:');
+        events.slice(0, 3).forEach((event, i) => {
+          console.log(`    Event ${i}: ${event.title}`);
+          console.log(`      - ticket_price: ${event.ticket_price} (${typeof event.ticket_price})`);
+          console.log(`      - ticketPrice: ${event.ticketPrice} (${typeof event.ticketPrice})`);
+        });
+      }
+      
       try {
         console.log('  ⚙️ Processing events with transformer...');
         const { transformBlockchainEvent, validateEventData } = await import('../utils/eventDataProcessor');
@@ -260,7 +270,21 @@ const TokenizedTicketing = () => {
         console.log('  🔄 Transforming events...');
         const formattedEvents = validEvents.map((event, index) => {
           console.log(`    🔄 Transforming event ${index + 1}/${validEvents.length}: ${event.title || event.name}`);
-          return transformBlockchainEvent(event, index);
+          try {
+            return transformBlockchainEvent(event, index);
+          } catch (transformError) {
+            console.error(`    ❌ Transform error for event ${event.title}:`, transformError);
+            console.error('    Event data:', event);
+            // Return a safe fallback event
+            return {
+              id: event.eventId || index,
+              name: event.title || `Event ${index}`,
+              price: '0 ETH',
+              priceValue: 0,
+              coordinates: [-1.2921, 36.8219],
+              ...event
+            };
+          }
         });
         
         console.log('  ✅ Events processed successfully:', formattedEvents.length);
