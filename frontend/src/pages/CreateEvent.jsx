@@ -19,10 +19,31 @@ const CreateEvent = () => {
   // Event data state
   const [eventData, setEventData] = useState({
     name: '',
-    date: '',
-    venue: '',
+    description: '',
+    startDate: '',
+    startTime: '',
+    endDate: '',
+    endTime: '',
+    timezone: 'GMT+03:00',
+    location: '',
+    isVirtual: false,
+    virtualLink: '',
     ticketPrice: '',
     totalTickets: '',
+    capacity: 'unlimited',
+    requireApproval: false,
+    category: 'Technology',
+    tags: '',
+    coverImage: '',
+    hostName: '',
+    hostEmail: '',
+    hostBio: '',
+    eventWebsite: '',
+    socialLinks: {
+      twitter: '',
+      linkedin: '',
+      instagram: ''
+    }
   });
 
   // POAP data state
@@ -137,14 +158,14 @@ const CreateEvent = () => {
       // Create event using the new smart contract integration
       const result = await createEvent({
         name: eventData.name,
-        title: eventData.name, // Alias for compatibility
-        description: '', // Add description field if needed
-        date: eventData.date,
-        venue: eventData.venue,
-        location: eventData.venue, // Alias for compatibility
+        title: eventData.name,
+        description: eventData.description,
+        date: eventData.startDate,
+        venue: eventData.isVirtual ? eventData.virtualLink : eventData.location,
+        location: eventData.isVirtual ? eventData.virtualLink : eventData.location,
         ticketPrice: eventData.ticketPrice,
-        totalTickets: eventData.totalTickets,
-        maxTickets: eventData.totalTickets // Alias for compatibility
+        totalTickets: eventData.capacity === 'unlimited' ? 10000 : eventData.totalTickets,
+        maxTickets: eventData.capacity === 'unlimited' ? 10000 : eventData.totalTickets
       });
 
       console.log('Event created successfully:', result);
@@ -197,7 +218,13 @@ const CreateEvent = () => {
       // window.location.reload(); // Uncomment if you prefer full page refresh
 
       // Reset all forms
-      setEventData({ name: '', date: '', venue: '', ticketPrice: '', totalTickets: '' });
+      setEventData({
+        name: '', description: '', startDate: '', startTime: '', endDate: '', endTime: '',
+        timezone: 'GMT+03:00', location: '', isVirtual: false, virtualLink: '',
+        ticketPrice: '', totalTickets: '', capacity: 'unlimited', requireApproval: false,
+        category: 'Technology', tags: '', coverImage: '', hostName: '', hostEmail: '',
+        hostBio: '', eventWebsite: '', socialLinks: { twitter: '', linkedin: '', instagram: '' }
+      });
       setPoapData({ enabled: false, name: '', description: '', image: '', eventUrl: '', city: '', country: '', startDate: '', endDate: '', expiryDate: '' });
       setBadgeData({ enabled: false, name: '', description: '', image: '', criteria: '', validUntil: '' });
 
@@ -248,7 +275,6 @@ const CreateEvent = () => {
               <div className="p-6 bg-gray-800/30 space-y-4">
                 <div className="mb-4">
                   <label className="block text-gray-300 font-semibold mb-2" htmlFor="name">
-                    <Calendar className="w-4 h-4 inline mr-2" />
                     Event Name
                   </label>
                   <input
@@ -258,82 +284,231 @@ const CreateEvent = () => {
                     value={eventData.name}
                     onChange={handleChange}
                     className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="Enter event name"
+                    placeholder="Event Name"
                     required
                   />
                 </div>
 
                 <div className="mb-4">
-                  <label className="block text-gray-300 font-semibold mb-2" htmlFor="date">
-                    <Calendar className="w-4 h-4 inline mr-2" />
-                    Event Date
-                  </label>
-                  <input
-                    type="date"
-                    id="date"
-                    name="date"
-                    value={eventData.date}
-                    onChange={handleChange}
-                    className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-
-                <div className="mb-4">
-                  <label className="block text-gray-300 font-semibold mb-2" htmlFor="venue">
-                    <MapPin className="w-4 h-4 inline mr-2" />
-                    Event Venue
+                  <label className="block text-gray-300 font-semibold mb-2" htmlFor="description">
+                    Add Description
                   </label>
                   <textarea
-                    id="venue"
-                    name="venue"
-                    value={eventData.venue}
+                    id="description"
+                    name="description"
+                    value={eventData.description}
                     onChange={handleChange}
                     className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent min-h-[100px]"
-                    placeholder="Enter event venue"
-                    required
+                    placeholder="Tell people what your event is about..."
                   />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
-                    <label className="block text-gray-300 font-semibold mb-2" htmlFor="ticketPrice">
-                      <DollarSign className="w-4 h-4 inline mr-2" />
-                      Ticket Price (ETH)
+                    <label className="block text-gray-300 font-semibold mb-2">
+                      Start
                     </label>
-                    <div className="relative">
+                    <div className="grid grid-cols-2 gap-2">
                       <input
-                        type="number"
-                        id="ticketPrice"
-                        name="ticketPrice"
-                        value={eventData.ticketPrice}
+                        type="date"
+                        name="startDate"
+                        value={eventData.startDate}
                         onChange={handleChange}
-                        className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent pr-10"
-                        placeholder="0.001"
-                        inputMode="decimal"
-                        min="0"
-                        step="0.001"
+                        className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
                         required
                       />
-                      <span className="absolute right-3 top-3.5 text-gray-500">ETH</span>
+                      <input
+                        type="time"
+                        name="startTime"
+                        value={eventData.startTime}
+                        onChange={handleChange}
+                        className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
+                        required
+                      />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-gray-300 font-semibold mb-2" htmlFor="totalTickets">
-                      <Hash className="w-4 h-4 inline mr-2" />
-                      Total Tickets
+                    <label className="block text-gray-300 font-semibold mb-2">
+                      End
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="date"
+                        name="endDate"
+                        value={eventData.endDate}
+                        onChange={handleChange}
+                        className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
+                      />
+                      <input
+                        type="time"
+                        name="endTime"
+                        value={eventData.endTime}
+                        onChange={handleChange}
+                        className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-gray-300 font-semibold mb-2">
+                    Add Event Location
+                  </label>
+                  <div className="flex items-center gap-3 mb-3">
+                    <input
+                      type="checkbox"
+                      id="isVirtual"
+                      name="isVirtual"
+                      checked={eventData.isVirtual}
+                      onChange={(e) => setEventData({...eventData, isVirtual: e.target.checked})}
+                      className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
+                    />
+                    <label htmlFor="isVirtual" className="text-gray-300">Virtual Event</label>
+                  </div>
+                  {eventData.isVirtual ? (
+                    <input
+                      type="url"
+                      name="virtualLink"
+                      value={eventData.virtualLink}
+                      onChange={handleChange}
+                      className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500"
+                      placeholder="Virtual event link (Zoom, Meet, etc.)"
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      name="location"
+                      value={eventData.location}
+                      onChange={handleChange}
+                      className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500"
+                      placeholder="Offline location or virtual link"
+                      required
+                    />
+                  )}
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-gray-300 font-semibold mb-2">
+                    Tickets
+                  </label>
+                  <div className="flex items-center gap-3 mb-3">
+                    <span className="text-gray-300">Price:</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        name="ticketPrice"
+                        value={eventData.ticketPrice}
+                        onChange={handleChange}
+                        className="w-24 p-2 bg-gray-700/50 border border-gray-600 rounded text-white focus:ring-2 focus:ring-purple-500"
+                        placeholder="0.001"
+                        min="0.001"
+                        step="0.001"
+                        required
+                      />
+                      <span className="text-gray-400">ETH</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <input
+                      type="checkbox"
+                      id="requireApproval"
+                      name="requireApproval"
+                      checked={eventData.requireApproval}
+                      onChange={(e) => setEventData({...eventData, requireApproval: e.target.checked})}
+                      className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
+                    />
+                    <label htmlFor="requireApproval" className="text-gray-300">Require Approval</label>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-gray-300 font-semibold mb-2">
+                    Capacity
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <select
+                      name="capacity"
+                      value={eventData.capacity}
+                      onChange={handleChange}
+                      className="p-2 bg-gray-700/50 border border-gray-600 rounded text-white focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="unlimited">Unlimited</option>
+                      <option value="limited">Limited</option>
+                    </select>
+                    {eventData.capacity === 'limited' && (
+                      <input
+                        type="number"
+                        name="totalTickets"
+                        value={eventData.totalTickets}
+                        onChange={handleChange}
+                        className="w-24 p-2 bg-gray-700/50 border border-gray-600 rounded text-white focus:ring-2 focus:ring-purple-500"
+                        placeholder="100"
+                        min="1"
+                        required
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-gray-300 font-semibold mb-2">
+                      Category
+                    </label>
+                    <select
+                      name="category"
+                      value={eventData.category}
+                      onChange={handleChange}
+                      className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="Technology">Technology</option>
+                      <option value="Music">Music</option>
+                      <option value="Art">Art</option>
+                      <option value="Finance">Finance</option>
+                      <option value="Gaming">Gaming</option>
+                      <option value="Sports">Sports</option>
+                      <option value="Education">Education</option>
+                      <option value="Business">Business</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-gray-300 font-semibold mb-2">
+                      Cover Image URL
                     </label>
                     <input
-                      type="number"
-                      id="totalTickets"
-                      name="totalTickets"
-                      value={eventData.totalTickets}
+                      type="url"
+                      name="coverImage"
+                      value={eventData.coverImage}
                       onChange={handleChange}
-                      className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      placeholder="100"
-                      inputMode="numeric"
-                      min="1"
-                      required
+                      className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500"
+                      placeholder="https://example.com/image.jpg"
+                    />
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-gray-300 font-semibold mb-2">
+                    Host Information
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input
+                      type="text"
+                      name="hostName"
+                      value={eventData.hostName}
+                      onChange={handleChange}
+                      className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500"
+                      placeholder="Host Name"
+                    />
+                    <input
+                      type="email"
+                      name="hostEmail"
+                      value={eventData.hostEmail}
+                      onChange={handleChange}
+                      className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500"
+                      placeholder="Host Email"
                     />
                   </div>
                 </div>
