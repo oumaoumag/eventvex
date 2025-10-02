@@ -81,64 +81,46 @@ const TokenizedTicketing = () => {
       window.removeEventListener('eventCreated', handleEventCreated);
       if (mapInstanceRef.current) {
         console.log('Cleaning up map instance');
-        mapInstanceRef.current.remove();
+        try {
+          mapInstanceRef.current.remove();
+        } catch (e) {
+          console.warn('Error removing map:', e);
+        }
         mapInstanceRef.current = null;
       }
     };
   }, []);
 
-  // Initialize the map
   const initializeMap = async () => {
-    // Prevent multiple initializations
-    if (mapInstanceRef.current) {
-      console.log('Map already initialized, skipping...');
-      return;
-    }
+    if (mapInstanceRef.current || !mapRef.current) return;
 
-    if (typeof window !== 'undefined' && mapRef.current) {
-      try {
-        console.log('Initializing new map instance...');
-
-        // Check if the container already has a map
-        if (mapRef.current._leaflet_id) {
-          console.log('Map container already has Leaflet instance, clearing...');
-          mapRef.current._leaflet_id = undefined;
-        }
-
-        // Dynamically import Leaflet to avoid SSR issues
-        const L = await import('leaflet');
-
-        // Fix for default markers
-        delete L.default.Icon.Default.prototype._getIconUrl;
-        L.default.Icon.Default.mergeOptions({
-          iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-          iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-        });
-
-        // Create map instance
-        const map = L.default.map(mapRef.current).setView(mapCenter, userLocation ? 6 : 4);
-
-        // Add OpenStreetMap tiles (free, no API key needed)
-        L.default.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-          maxZoom: 18,
-        }).addTo(map);
-
-        mapInstanceRef.current = map;
-        console.log('Map instance created successfully');
-
-        // Wait for map to be ready, then add markers
-        setTimeout(() => {
-          console.log('Adding markers to newly initialized map');
-          updateMapMarkers(L.default);
-        }, 500);
-
-      } catch (error) {
-        console.error('Error initializing map:', error);
+    try {
+      // Clear any existing Leaflet instance
+      if (mapRef.current._leaflet_id) {
+        delete mapRef.current._leaflet_id;
       }
-    } else {
-      console.log('Cannot initialize map: window or mapRef not available');
+      
+      // Remove any existing map container content
+      mapRef.current.innerHTML = '';
+
+      const L = await import('leaflet');
+      delete L.default.Icon.Default.prototype._getIconUrl;
+      L.default.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+      });
+
+      const map = L.default.map(mapRef.current).setView(mapCenter, userLocation ? 6 : 4);
+      L.default.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 18,
+      }).addTo(map);
+
+      mapInstanceRef.current = map;
+      setTimeout(() => updateMapMarkers(L.default), 300);
+    } catch (error) {
+      console.error('Map init error:', error);
     }
   };
 
@@ -160,77 +142,16 @@ const TokenizedTicketing = () => {
     }
   }, [mapInstanceRef.current, filteredEvents]);
 
-  // Check if map needs reinitialization when component becomes visible
+
+
   useEffect(() => {
-    const checkAndReinitializeMap = () => {
-      if (mapRef.current && !mapInstanceRef.current) {
-        console.log('Map container exists but map instance is missing, reinitializing...');
-        initializeMap();
-      }
-    };
-
-    // Check immediately
-    checkAndReinitializeMap();
-
-    // Also check after a short delay in case the DOM needs time to settle
-    const timeoutId = setTimeout(checkAndReinitializeMap, 500);
-
-    return () => clearTimeout(timeoutId);
-  }, [isVisible]);
-
-  // Reinitialize map when switching to map view
-  useEffect(() => {
-    if (viewMode === 'map') {
-      // Clean up existing map instance first
-      if (mapInstanceRef.current) {
-        console.log('Cleaning up existing map instance before reinitializing');
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
-
-      // Small delay to ensure DOM is ready
-      const timeoutId = setTimeout(() => {
-        if (mapRef.current) {
-          console.log('Switching to map view, reinitializing map...');
-          initializeMap();
-        }
-      }, 200);
-
-      return () => clearTimeout(timeoutId);
-    } else {
-      // When switching away from map view, clean up the map
-      if (mapInstanceRef.current) {
-        console.log('Switching away from map view, cleaning up map instance');
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
+    if (viewMode === 'map' && !mapInstanceRef.current) {
+      const timer = setTimeout(initializeMap, 100);
+      return () => clearTimeout(timer);
     }
   }, [viewMode]);
 
-  // Add intersection observer to detect when map container becomes visible
-  useEffect(() => {
-    if (!mapRef.current) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && !mapInstanceRef.current) {
-            console.log('Map container became visible, reinitializing map...');
-            setTimeout(() => {
-              initializeMap();
-            }, 100);
-          }
-        });
-      },
-      { threshold: 0.1 }
-    );
-
-    observer.observe(mapRef.current);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
 
   // Get user's current location
   const getUserLocation = () => {
@@ -262,23 +183,25 @@ const TokenizedTicketing = () => {
   const [blockchainEvents, setBlockchainEvents] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
   
-  // Load events using hybrid database for fast loading
   const loadBlockchainEvents = async () => {
     try {
       setLoadingEvents(true);
       const { getActiveEvents } = await import('../utils/contractIntegration');
       const events = await getActiveEvents();
       
-      // Transform events using data processor
-      const { transformBlockchainEvent, validateEventData } = await import('../utils/eventDataProcessor');
-      const formattedEvents = events
-        .filter(validateEventData)
-        .map(transformBlockchainEvent);
-      
-      setBlockchainEvents(formattedEvents);
+      try {
+        const { transformBlockchainEvent, validateEventData } = await import('../utils/eventDataProcessor');
+        const formattedEvents = events
+          .filter(validateEventData)
+          .map(transformBlockchainEvent);
+        setBlockchainEvents(formattedEvents);
+      } catch (processorError) {
+        console.warn('Event processor error, using raw events:', processorError);
+        setBlockchainEvents(events || []);
+      }
     } catch (error) {
       console.error('Error loading events:', error);
-      setBlockchainEvents([]); // No fallback to hardcoded data
+      setBlockchainEvents([]);
     } finally {
       setLoadingEvents(false);
     }
