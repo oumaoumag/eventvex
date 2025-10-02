@@ -186,29 +186,47 @@ const EventTicketListing = () => {
         // Try to load event from smart contract first
         if (eventId && !isNaN(parseInt(eventId))) {
           try {
+            console.log(`🔍 Loading event ${eventId} from blockchain...`);
             const blockchainEvent = await getEventDetails(parseInt(eventId));
-            const availableSeats = await getAvailableSeats(blockchainEvent.contractAddress);
+            console.log('✅ Blockchain event loaded:', blockchainEvent);
+            
+            // Only try to get available seats if we have a valid contract address
+            let availableSeats = [];
+            if (blockchainEvent.contractAddress && blockchainEvent.contractAddress !== '0x0000000000000000000000000000000000000000') {
+              try {
+                console.log('🎫 Getting available seats...');
+                availableSeats = await getAvailableSeats(blockchainEvent.contractAddress);
+                console.log('✅ Available seats:', availableSeats);
+              } catch (seatsError) {
+                console.warn('⚠️ Could not fetch available seats:', seatsError.message);
+                // Generate some default seats if we can't fetch them
+                availableSeats = Array.from({length: 10}, (_, i) => i + 1);
+              }
+            } else {
+              console.log('⚠️ No valid contract address, using default seats');
+              availableSeats = Array.from({length: 10}, (_, i) => i + 1);
+            }
 
             // Convert blockchain event to component format
             const formattedEvent = {
               id: blockchainEvent.id,
-              name: blockchainEvent.title,
-              date: blockchainEvent.eventDate.toLocaleDateString(),
-              dateObj: blockchainEvent.eventDate,
-              price: `${blockchainEvent.ticketPrice} ETH`,
-              priceValue: parseFloat(blockchainEvent.ticketPrice),
+              name: blockchainEvent.title || `Event ${blockchainEvent.id}`,
+              date: blockchainEvent.eventDate ? blockchainEvent.eventDate.toLocaleDateString() : 'TBD',
+              dateObj: blockchainEvent.eventDate || new Date(),
+              price: blockchainEvent.ticketPrice ? `${blockchainEvent.ticketPrice} ETH` : '0.001 ETH',
+              priceValue: blockchainEvent.ticketPrice ? parseFloat(blockchainEvent.ticketPrice) : 0.001,
               available: availableSeats.length,
-              total: blockchainEvent.maxTickets,
+              total: blockchainEvent.maxTickets || 100,
               category: "Blockchain Event",
-              location: "TBD", // Add location field to smart contract if needed
-              description: "Event created on blockchain",
+              location: blockchainEvent.location || "Virtual Event",
+              description: blockchainEvent.description || "Event created on blockchain",
               contractAddress: blockchainEvent.contractAddress,
               organizer: blockchainEvent.organizer,
               tickets: {
                 original: availableSeats.map(seatNum => ({
                   id: `orig-${blockchainEvent.id}-${seatNum}`,
                   seatNumber: seatNum.toString(),
-                  price: parseFloat(blockchainEvent.ticketPrice),
+                  price: blockchainEvent.ticketPrice ? parseFloat(blockchainEvent.ticketPrice) : 0.001,
                   available: true,
                   type: "General"
                 })),
@@ -216,16 +234,27 @@ const EventTicketListing = () => {
               }
             };
 
+            console.log('✅ Formatted event for display:', formattedEvent);
             setEvent(formattedEvent);
             setLoading(false);
             return;
           } catch (blockchainError) {
-            console.log('Event not found on blockchain, falling back to sample data:', blockchainError);
+            console.log('❌ Event not found on blockchain, falling back to sample data:', blockchainError);
+            console.log('Error details:', {
+              message: blockchainError.message,
+              stack: blockchainError.stack
+            });
           }
         }
 
         // Fallback to sample data if blockchain loading fails
+        console.log('🔍 Falling back to sample data...');
         const foundEvent = sampleEvents.find(e => e.id === parseInt(eventId));
+        if (foundEvent) {
+          console.log('✅ Found sample event:', foundEvent.name);
+        } else {
+          console.log('⚠️ No sample event found for ID:', eventId);
+        }
         setEvent(foundEvent);
         setLoading(false);
 
