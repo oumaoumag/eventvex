@@ -2,28 +2,26 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
-// Determine the base path based on deployment target
-// NETLIFY env var is automatically set in Netlify deployment environment
 const isNetlify = process.env.NETLIFY === 'true';
-
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      buffer: 'buffer',
     },
   },
-  optimizeDeps: {
-    include: ['@chakra-ui/react'],
+  define: {
+    global: 'globalThis',
   },
-  // Use root path for Netlify, and /eventvex for GitHub Pages
+  optimizeDeps: {
+    include: ['@chakra-ui/react', 'buffer'],
+  },
   base: isNetlify ? '/' : '/',
-  // Development server configuration
   server: {
     port: 5173,
     host: true,
-    // Ensure dev server serves at root path
     base: '/',
   },
 });
