@@ -92,18 +92,41 @@ const TokenizedTicketing = () => {
   }, []);
 
   const initializeMap = async () => {
-    if (mapInstanceRef.current || !mapRef.current) return;
+    console.log('🗺️ Initializing map...');
+    console.log('  - mapInstanceRef.current:', !!mapInstanceRef.current);
+    console.log('  - mapRef.current:', !!mapRef.current);
+    
+    if (mapInstanceRef.current) {
+      console.log('  ⚠️ Map instance already exists, skipping initialization');
+      return;
+    }
+    
+    if (!mapRef.current) {
+      console.log('  ❌ Map container ref not available');
+      return;
+    }
 
     try {
+      console.log('  🧹 Cleaning up existing map elements...');
+      
       // Clear any existing Leaflet instance
       if (mapRef.current._leaflet_id) {
+        console.log('  - Removing existing leaflet ID');
         delete mapRef.current._leaflet_id;
       }
       
       // Remove any existing map container content
       mapRef.current.innerHTML = '';
+      
+      // Remove any existing Leaflet containers
+      const existingMaps = mapRef.current.querySelectorAll('.leaflet-container');
+      console.log('  - Found', existingMaps.length, 'existing map containers');
+      existingMaps.forEach(map => map.remove());
 
+      console.log('  📦 Loading Leaflet library...');
       const L = await import('leaflet');
+      
+      console.log('  ⚙️ Configuring Leaflet icons...');
       delete L.default.Icon.Default.prototype._getIconUrl;
       L.default.Icon.Default.mergeOptions({
         iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -111,16 +134,29 @@ const TokenizedTicketing = () => {
         shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
       });
 
+      console.log('  🌍 Creating map instance...');
+      console.log('  - Map center:', mapCenter);
+      console.log('  - User location:', userLocation);
+      
       const map = L.default.map(mapRef.current).setView(mapCenter, userLocation ? 6 : 4);
+      
+      console.log('  🗺️ Adding tile layer...');
       L.default.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 18,
       }).addTo(map);
 
       mapInstanceRef.current = map;
+      console.log('  ✅ Map initialized successfully');
+      
+      console.log('  📍 Adding markers after delay...');
       setTimeout(() => updateMapMarkers(L.default), 300);
     } catch (error) {
-      console.error('Map init error:', error);
+      console.error('❌ Map init error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack
+      });
     }
   };
 
@@ -145,9 +181,19 @@ const TokenizedTicketing = () => {
 
 
   useEffect(() => {
-    if (viewMode === 'map' && !mapInstanceRef.current) {
-      const timer = setTimeout(initializeMap, 100);
-      return () => clearTimeout(timer);
+    console.log('🔄 View mode changed to:', viewMode);
+    
+    if (viewMode === 'map') {
+      if (!mapInstanceRef.current) {
+        console.log('  🎯 Map view selected, initializing map...');
+        const timer = setTimeout(initializeMap, 100);
+        return () => clearTimeout(timer);
+      } else {
+        console.log('  ✅ Map already exists, updating markers...');
+        setTimeout(() => updateMapMarkers(), 300);
+      }
+    } else {
+      console.log('  📋 List view selected');
     }
   }, [viewMode]);
 
@@ -184,26 +230,59 @@ const TokenizedTicketing = () => {
   const [loadingEvents, setLoadingEvents] = useState(true);
   
   const loadBlockchainEvents = async () => {
+    console.log('📦 Loading blockchain events...');
     try {
       setLoadingEvents(true);
+      
+      console.log('  🔗 Importing contract integration...');
       const { getActiveEvents } = await import('../utils/contractIntegration');
+      
+      console.log('  📊 Fetching events from database...');
       const events = await getActiveEvents();
       
+      console.log('  📝 Raw events from database:', events?.length || 0, 'events');
+      console.log('  🔍 First event sample:', events?.[0]);
+      
       try {
+        console.log('  ⚙️ Processing events with transformer...');
         const { transformBlockchainEvent, validateEventData } = await import('../utils/eventDataProcessor');
-        const formattedEvents = events
-          .filter(validateEventData)
-          .map(transformBlockchainEvent);
+        
+        console.log('  ✅ Validating events...');
+        const validEvents = events.filter((event, index) => {
+          const isValid = validateEventData(event);
+          if (!isValid) {
+            console.log(`    ⚠️ Event ${index} failed validation:`, event);
+          }
+          return isValid;
+        });
+        console.log(`  📊 Valid events: ${validEvents.length}/${events?.length || 0}`);
+        
+        console.log('  🔄 Transforming events...');
+        const formattedEvents = validEvents.map((event, index) => {
+          console.log(`    🔄 Transforming event ${index + 1}/${validEvents.length}: ${event.title || event.name}`);
+          return transformBlockchainEvent(event, index);
+        });
+        
+        console.log('  ✅ Events processed successfully:', formattedEvents.length);
         setBlockchainEvents(formattedEvents);
       } catch (processorError) {
-        console.warn('Event processor error, using raw events:', processorError);
+        console.warn('  ❌ Event processor error, using raw events:', processorError);
+        console.warn('  Error details:', {
+          message: processorError.message,
+          stack: processorError.stack
+        });
         setBlockchainEvents(events || []);
       }
     } catch (error) {
-      console.error('Error loading events:', error);
+      console.error('❌ Error loading events:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack
+      });
       setBlockchainEvents([]);
     } finally {
       setLoadingEvents(false);
+      console.log('🏁 Event loading completed');
     }
   };
   
@@ -211,11 +290,21 @@ const TokenizedTicketing = () => {
 
   // Filter and search logic
   useEffect(() => {
+    console.log('🔍 Filtering events...');
+    console.log('  - Total events:', blockchainEvents.length);
+    console.log('  - Search term:', searchTerm);
+    console.log('  - Active filters:', Object.entries(filters).filter(([key, value]) => {
+      if (typeof value === 'object') {
+        return Object.values(value).some(v => v !== '');
+      }
+      return value !== '';
+    }));
+    
     let filtered = blockchainEvents.filter(event => {
       // Search term filter
-      const matchesSearch = event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           event.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           event.description.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = (event.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           (event.location || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           (event.description || '').toLowerCase().includes(searchTerm.toLowerCase());
 
       // Category filter
       const matchesCategory = !filters.category || event.category === filters.category;
@@ -235,17 +324,21 @@ const TokenizedTicketing = () => {
         (filters.availability === 'soldout' && event.available === 0);
 
       // Location filter
-      const matchesLocation = !filters.location || event.location.toLowerCase().includes(filters.location.toLowerCase());
+      const matchesLocation = !filters.location || (event.location || '').toLowerCase().includes(filters.location.toLowerCase());
 
       return matchesSearch && matchesCategory && matchesPriceMin && matchesPriceMax &&
              matchesDateStart && matchesDateEnd && matchesAvailability && matchesLocation;
     });
 
+    console.log('  ✅ Filtered results:', filtered.length, 'events');
     setFilteredEvents(filtered);
   }, [searchTerm, filters, blockchainEvents]);
 
   // Initialize filtered events when blockchain events load
   useEffect(() => {
+    console.log('🔄 Blockchain events updated, setting filtered events...');
+    console.log('  - Blockchain events count:', blockchainEvents.length);
+    console.log('  - Sample blockchain event:', blockchainEvents[0]);
     setFilteredEvents(blockchainEvents);
   }, [blockchainEvents]);
 
@@ -310,7 +403,7 @@ const TokenizedTicketing = () => {
 
   // Get distance from user to event
   const getDistanceToEvent = (event) => {
-    if (!userLocation) return null;
+    if (!userLocation || !event.coordinates || event.coordinates.length !== 2) return null;
     return calculateDistance(
       userLocation[0], userLocation[1],
       event.coordinates[0], event.coordinates[1]
@@ -325,22 +418,28 @@ const TokenizedTicketing = () => {
 
   // Update map markers
   const updateMapMarkers = async (L) => {
+    console.log('📍 Starting marker update...');
+    
     if (!mapInstanceRef.current) {
-      console.log('Map instance not ready');
+      console.log('  ❌ Map instance not ready');
       return;
     }
 
     // Import Leaflet if not provided
     if (!L) {
+      console.log('  📦 Loading Leaflet for markers...');
       try {
         L = (await import('leaflet')).default;
       } catch (error) {
-        console.error('Error importing Leaflet:', error);
+        console.error('  ❌ Error importing Leaflet:', error);
         return;
       }
     }
 
-    console.log('Updating markers. User location:', userLocation, 'Filtered events:', filteredEvents.length);
+    console.log('  📊 Marker update stats:');
+    console.log('    - User location:', userLocation);
+    console.log('    - Filtered events:', filteredEvents.length);
+    console.log('    - Events with coordinates:', filteredEvents.filter(e => e.coordinates && e.coordinates.length === 2).length);
 
     // Clear existing markers (but keep the tile layer)
     mapInstanceRef.current.eachLayer((layer) => {
@@ -379,13 +478,25 @@ const TokenizedTicketing = () => {
     }
 
     // Add event markers
+    console.log('  🎯 Adding event markers...');
     filteredEvents.forEach((event, index) => {
-      if (!event.coordinates || event.coordinates.length !== 2) {
-        console.warn('Invalid coordinates for event:', event.name, event.coordinates);
+      console.log(`    📍 Processing event ${index + 1}/${filteredEvents.length}: ${event.name}`);
+      console.log('      - Coordinates:', event.coordinates);
+      console.log('      - Location:', event.location);
+      
+      if (!event.coordinates || !Array.isArray(event.coordinates) || event.coordinates.length !== 2) {
+        console.warn(`      ⚠️ Invalid coordinates for event: ${event.name}`, event.coordinates);
+        return;
+      }
+      
+      // Validate coordinate values
+      const [lat, lng] = event.coordinates;
+      if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) {
+        console.warn(`      ⚠️ Invalid coordinate values: lat=${lat}, lng=${lng}`);
         return;
       }
 
-      console.log(`Adding event marker ${index + 1}:`, event.name, 'at', event.coordinates);
+      console.log(`      ✅ Adding marker at [${lat}, ${lng}]`);
 
       try {
         const color = event.available > 0 ? '#10b981' : '#ef4444';
@@ -550,13 +661,32 @@ const TokenizedTicketing = () => {
               {loadingEvents ? 'Loading...' : `${filteredEvents.length} event${filteredEvents.length !== 1 ? 's' : ''} found`}
             </span>
             <button
-              onClick={loadBlockchainEvents}
+              onClick={() => {
+                console.log('🔄 Manual refresh triggered');
+                loadBlockchainEvents();
+              }}
               className="flex items-center space-x-1 px-3 py-1 text-sm text-blue-400 hover:text-blue-300
                 transition-colors duration-300"
               disabled={loadingEvents}
             >
               <RefreshCw className={`w-3 h-3 ${loadingEvents ? 'animate-spin' : ''}`} />
               <span>Refresh</span>
+            </button>
+            <button
+              onClick={async () => {
+                console.log('🧹 Force refresh: clearing database cache...');
+                localStorage.removeItem('eventvex_db_seeded');
+                localStorage.removeItem('eventvex_db');
+                localStorage.removeItem('eventvex_db_version');
+                console.log('  ✅ Cache cleared, reloading page...');
+                window.location.reload();
+              }}
+              className="flex items-center space-x-1 px-3 py-1 text-sm text-red-400 hover:text-red-300
+                transition-colors duration-300"
+              title="Clear database cache and reload"
+            >
+              <RefreshCw className="w-3 h-3" />
+              <span>Force Refresh</span>
             </button>
             <button
               onClick={clearFilters}
@@ -767,7 +897,11 @@ const TokenizedTicketing = () => {
               <br />
               Map instance: {mapInstanceRef.current ? 'Active' : 'Missing'}, View mode: {viewMode}
               <br />
-              Kenya events: {filteredEvents.filter(e => e.location.includes('Kenya')).length}
+              Kenya events: {filteredEvents.filter(e => e.location && e.location.includes('Kenya')).length}
+              <br />
+              Events with coordinates: {filteredEvents.filter(e => e.coordinates && e.coordinates.length === 2).length}
+              <br />
+              Sample event: {filteredEvents[0] ? `${filteredEvents[0].name} at ${filteredEvents[0].coordinates}` : 'None'}
             </div>
           </div>
         </div>
@@ -777,9 +911,9 @@ const TokenizedTicketing = () => {
         {viewMode === 'list' && (
           <div className="max-w-7xl mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredEvents.map((event) => (
+              {filteredEvents.map((event, index) => (
                 <div
-                  key={event.id}
+                  key={`event-${event.id || index}`}
                   className="bg-black/40 backdrop-blur-xl rounded-xl border border-purple-500/30 overflow-hidden
                     hover:border-purple-400/50 transition-all duration-300 group"
                 >
@@ -788,6 +922,17 @@ const TokenizedTicketing = () => {
                       src={event.image}
                       alt={event.name}
                       className="w-full h-48 object-cover"
+                      onLoad={() => console.log(`✅ Image loaded for ${event.name}:`, event.image)}
+                      onError={(e) => {
+                        console.log(`❌ Image failed for ${event.name}:`, event.image);
+                        console.log('Error details:', {
+                          target: e.target.src,
+                          error: e.type,
+                          event: event
+                        });
+                        // Set fallback image
+                        e.target.src = 'src/assets/tig.png';
+                      }}
                     />
                     <div className="absolute top-3 right-3">
                       <span className="bg-purple-600/90 text-white px-2 py-1 rounded-full text-xs">
