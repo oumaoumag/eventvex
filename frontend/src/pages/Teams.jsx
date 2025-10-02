@@ -36,6 +36,18 @@ const AnimatedTeamSection = () => {
         twitter: "https://x.com/oumaphilip01",
         email: "oumaphilip01@gmail.com"
       }
+    },
+    {
+      name: "Ouma Ouma",
+      role: "Blockchain Developer",
+      bio: "Shaping the future with blockchain and innovation.",
+      image: "/src/assets/ouma.jpeg",
+      social: {
+        github: "https://github.com/oumaoumag",
+        linkedin: "https://www.linkedin.com/in/ouma-ouma-a01716267?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app",
+        twitter: "https://x.com/ouma_godwin1",
+        email: "ouma.godwin10@gmail.com"
+      }
     }
   ];
 
