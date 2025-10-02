@@ -68,8 +68,11 @@ const Header = () => {
 
   const navLinks = [
     { name: 'Home', path: '/' },
-    { name: 'collections', path: '/collection' },
-    { name: 'TicketMinting', path: '/create' },
+    { name: 'Dashboard', path: '/dashboard'},
+    { name: 'Collections', path: '/collection' },
+    { name: 'Explore', path: '/ticketsell' },
+    { name: 'Create', path: '/create' },
+    { name: 'Waitinglist', path: '/waiting' }
   ];
 
   return (
