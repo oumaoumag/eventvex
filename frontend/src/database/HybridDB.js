@@ -34,14 +34,21 @@ class HybridDB {
         locateFile: file => `https://sql.js.org/dist/${file}`
       });
 
-      // Load existing database from localStorage or create new
+      // Check database version and recreate if needed
+      const currentVersion = '1.2';
+      const savedVersion = localStorage.getItem('eventvex_db_version');
       const savedDB = localStorage.getItem('eventvex_db');
-      if (savedDB) {
+      const isSeeded = localStorage.getItem('eventvex_db_seeded') === 'true';
+      
+      if (savedDB && savedVersion === currentVersion && isSeeded) {
         const uint8Array = new Uint8Array(JSON.parse(savedDB));
         this.db = new SQL.Database(uint8Array);
       } else {
+        console.log('Creating new database with updated schema...');
         this.db = new SQL.Database();
         await this.createSchema();
+        localStorage.setItem('eventvex_db_version', currentVersion);
+        localStorage.setItem('eventvex_db_seeded', 'false');
       }
 
       this.isInitialized = true;
@@ -125,10 +132,23 @@ class HybridDB {
     query += ` ORDER BY event_date DESC LIMIT ? OFFSET ?`;
     params.push(limit, offset);
 
-    // Get from local cache first
-    const stmt = this.db.prepare(query);
-    const results = stmt.getAsObject(params);
-    stmt.free();
+    // Get from local cache first - use exec to get all rows
+    const execResult = this.db.exec(query, params);
+    let results = [];
+    
+    if (execResult.length > 0 && execResult[0].values) {
+      const columns = execResult[0].columns;
+      results = execResult[0].values.map(row => {
+        const obj = {};
+        columns.forEach((col, index) => {
+          obj[col] = row[index];
+        });
+        return obj;
+      });
+    }
+
+    console.log(`Database query returned ${results.length} events`);
+    console.log('Raw results:', results);
 
     // Check if we need to sync from blockchain
     const needsSync = forceSync || this.shouldSync('events');
@@ -249,10 +269,11 @@ class HybridDB {
                ) FROM users WHERE wallet_address = si.record_id)
              END as data
       FROM search_index si
-      WHERE search_index MATCH ?
+      WHERE (si.title LIKE ? OR si.content LIKE ? OR si.tags LIKE ?)
     `;
 
-    const params = [query];
+    const searchTerm = `%${query}%`;
+    const params = [searchTerm, searchTerm, searchTerm];
 
     if (type) {
       searchQuery += ` AND si.type = ?`;
@@ -270,6 +291,33 @@ class HybridDB {
       ...row,
       data: JSON.parse(row.data)
     }));
+  }
+
+  /**
+   * Store base64 image in database
+   */
+  async storeImage(imageBase64, type = 'event', recordId) {
+    const imageId = `${type}_${recordId}_${Date.now()}`;
+    
+    this.db.run(`
+      INSERT OR REPLACE INTO images
+      (image_id, type, record_id, base64_data, created_at)
+      VALUES (?, ?, ?, ?, strftime('%s', 'now'))
+    `, [imageId, type, recordId, imageBase64]);
+    
+    this.saveDatabase();
+    return imageId;
+  }
+
+  /**
+   * Get base64 image from database
+   */
+  async getImage(imageId) {
+    const stmt = this.db.prepare('SELECT base64_data FROM images WHERE image_id = ?');
+    const result = stmt.getAsObject([imageId]);
+    stmt.free();
+    
+    return result.length > 0 ? result[0].base64_data : null;
   }
 
   /**
@@ -336,6 +384,10 @@ class HybridDB {
     const enhanced = await Promise.all(items.map(async (item) => {
       const enhanced = { ...item };
       
+      console.log(`🖼️ Processing image for ${item.title}:`);
+      console.log('  - cover_image:', item.cover_image);
+      console.log('  - image_uri:', item.image_uri);
+      
       // Load metadata from IPFS if available
       if (item.metadata_uri) {
         const metadata = await this.cacheIPFSContent(item.metadata_uri, 'metadata');
@@ -344,9 +396,23 @@ class HybridDB {
         }
       }
       
-      // Load image from IPFS if available
-      if (item.image_uri) {
+      // Use cover image first, then IPFS image as fallback
+      if (item.cover_image) {
+        enhanced.image_url = item.cover_image;
+        console.log('  ✅ Using cover_image:', enhanced.image_url);
+      } else if (item.image_uri) {
         enhanced.image_url = getIPFSUrl(item.image_uri);
+        console.log('  ✅ Using IPFS image_uri:', enhanced.image_url);
+      } else {
+        // Assign fallback image based on category or event type
+        const fallbackImages = {
+          'Technology': 'src/assets/tig.png',
+          'Music': 'src/assets/concert1.jpg',
+          'Art': 'src/assets/ast.png',
+          'default': 'src/assets/tig.png'
+        };
+        enhanced.image_url = fallbackImages[item.category] || fallbackImages.default;
+        console.log('  🔄 Using fallback image:', enhanced.image_url);
       }
       
       return enhanced;
@@ -597,38 +663,59 @@ class HybridDB {
    * Upsert event in local database
    */
   async upsertEvent(eventData) {
+    console.log('Upserting event:', eventData);
+    
     const {
       eventId,
       eventContract,
       organizer,
       title,
+      description,
+      location,
       metadataURI,
       eventDate,
       ticketPrice,
       maxTickets,
       isActive,
-      createdAt
+      createdAt,
+      coverImage,
+      category,
+      hostName,
+      hostEmail
     } = eventData;
 
-    this.db.run(`
-      INSERT OR REPLACE INTO events
-      (event_id, contract_address, organizer_address, title, metadata_uri,
-       event_date, ticket_price, max_tickets, is_active, created_at, last_synced)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%s', 'now'))
-    `, [
-      eventId,
-      eventContract,
-      organizer,
-      title,
-      metadataURI,
-      eventDate,
-      ticketPrice.toString(),
-      maxTickets,
-      isActive ? 1 : 0,
-      createdAt
-    ]);
+    try {
+      this.db.run(`
+        INSERT OR REPLACE INTO events
+        (event_id, contract_address, organizer_address, title, description, location,
+         metadata_uri, event_date, ticket_price, max_tickets, is_active, created_at, 
+         last_synced, cover_image, category, host_name, host_email)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%s', 'now'), ?, ?, ?, ?)
+      `, [
+        eventId,
+        eventContract || '',
+        organizer || '',
+        title || '',
+        description || '',
+        location || '',
+        metadataURI || '',
+        eventDate || Math.floor(Date.now() / 1000),
+        ticketPrice ? ticketPrice.toString() : '0',
+        maxTickets || 0,
+        isActive ? 1 : 0,
+        createdAt || Math.floor(Date.now() / 1000),
+        coverImage || null,
+        category || 'Technology',
+        hostName || '',
+        hostEmail || ''
+      ]);
 
-    this.saveDatabase();
+      this.saveDatabase();
+      console.log('Event upserted successfully:', eventId);
+    } catch (error) {
+      console.error('Failed to upsert event:', error);
+      throw error;
+    }
   }
 
   /**
