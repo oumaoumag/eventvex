@@ -1,70 +1,95 @@
 import { useState, useEffect } from 'react';
-import toast from 'react-toastify'; // Install react-toastify for notifications
 import {
   connectWallet,
   checkWalletConnection,
   setupWalletListeners,
   formatWalletAddress,
   switchNetwork,
-  BASE_MAINNET_PARAMS
+  BASE_SEPOLIA_PARAMS,
+  isWalletAvailable
 } from '../utils/walletUtils';
+
+const WalletErrorStates = {
+  WALLET_NOT_FOUND: 'Please install MetaMask or another Web3 wallet',
+  USER_REJECTED: 'Connection cancelled by user',
+  NETWORK_ERROR: 'Please switch to Base Sepolia network',
+  UNKNOWN_ERROR: 'Connection failed. Please try again'
+};
+
+const isMobile = () => /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 export default function ConnectWalletButton() {
   const [walletAddress, setWalletAddress] = useState(null);
-  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionState, setConnectionState] = useState({
+    isConnecting: false,
+    isSwitchingNetwork: false,
+    isValidating: false
+  });
   const [networkId, setNetworkId] = useState(null);
-  const EXPECTED_CHAIN_ID = 8453; // Base Mainnet
+  const [error, setError] = useState('');
+  const EXPECTED_CHAIN_ID = 84532; // Base Sepolia
 
-  // Function to connect the wallet
   const handleConnectWallet = async () => {
+    if (!isWalletAvailable()) {
+      if (isMobile()) {
+        window.open(`https://metamask.app.link/dapp/${window.location.href}`, '_blank');
+        return;
+      }
+      setError(WalletErrorStates.WALLET_NOT_FOUND);
+      return;
+    }
+
     try {
-      setIsConnecting(true);
+      setConnectionState({ isConnecting: true, isSwitchingNetwork: false, isValidating: false });
+      setError('');
 
-      // Connect wallet
       const { address, provider } = await connectWallet();
-
-      // Validate the network
+      
+      setConnectionState({ isConnecting: false, isSwitchingNetwork: true, isValidating: false });
       const network = await provider.getNetwork();
+      
       if (network.chainId !== EXPECTED_CHAIN_ID) {
-        toast.warn('Switching to Base Mainnet...');
-        await switchNetwork(BASE_MAINNET_PARAMS);
+        await switchNetwork(BASE_SEPOLIA_PARAMS);
       }
 
-      // Set wallet address and network state
+      setConnectionState({ isConnecting: false, isSwitchingNetwork: false, isValidating: true });
       setWalletAddress(address);
       setNetworkId(network.chainId);
-      toast.success('Wallet connected successfully!');
+      localStorage.setItem('wallet_connected', 'true');
+      
     } catch (error) {
       if (error.code === 4001) {
-        toast.error('Connection request was rejected.');
+        setError(WalletErrorStates.USER_REJECTED);
+      } else if (error.message.includes('network')) {
+        setError(WalletErrorStates.NETWORK_ERROR);
       } else {
-        toast.error('An unexpected error occurred while connecting the wallet.');
+        setError(WalletErrorStates.UNKNOWN_ERROR);
       }
     } finally {
-      setIsConnecting(false);
+      setConnectionState({ isConnecting: false, isSwitchingNetwork: false, isValidating: false });
     }
   };
 
-  // Function to disconnect the wallet
   const disconnectWallet = () => {
     setWalletAddress(null);
     setNetworkId(null);
-    toast.info('Wallet disconnected.');
+    setError('');
+    localStorage.removeItem('wallet_connected');
   };
 
-  // Handle account and network changes
   useEffect(() => {
-    // Check if wallet is already connected
-    const checkConnection = async () => {
-      const address = await checkWalletConnection();
-      if (address) {
-        setWalletAddress(address);
+    const autoReconnect = async () => {
+      const lastConnected = localStorage.getItem('wallet_connected');
+      if (lastConnected && isWalletAvailable()) {
+        const address = await checkWalletConnection();
+        if (address) {
+          setWalletAddress(address);
+        }
       }
     };
 
-    checkConnection();
+    autoReconnect();
 
-    // Setup wallet event listeners
     const cleanup = setupWalletListeners({
       onAccountsChanged: (accounts) => {
         if (accounts.length > 0) {
@@ -74,11 +99,12 @@ export default function ConnectWalletButton() {
         }
       },
       onChainChanged: (chainId) => {
-        const numericChainId = parseInt(chainId, 16); // Convert hex chainId to decimal
+        const numericChainId = parseInt(chainId, 16);
         setNetworkId(numericChainId);
-
         if (numericChainId !== EXPECTED_CHAIN_ID) {
-          toast.warn('You are on the wrong network. Please switch to the Base Mainnet.');
+          setError('Wrong network. Please switch to Base Sepolia.');
+        } else {
+          setError('');
         }
       }
     });
@@ -86,37 +112,65 @@ export default function ConnectWalletButton() {
     return cleanup;
   }, []);
 
+  const { isConnecting, isSwitchingNetwork, isValidating } = connectionState;
+  const isLoading = isConnecting || isSwitchingNetwork || isValidating;
+  const isCorrectNetwork = networkId === EXPECTED_CHAIN_ID;
+
+  const getButtonText = () => {
+    if (isConnecting) return 'Connecting...';
+    if (isSwitchingNetwork) return 'Switching Network...';
+    if (isValidating) return 'Validating...';
+    if (walletAddress) return `${formatWalletAddress(walletAddress)}`;
+    return 'Connect Wallet';
+  };
+
   return (
     <div className="text-center">
-      {/** Connect Wallet Button */}
       <button
         onClick={handleConnectWallet}
-        disabled={isConnecting || walletAddress}
-        className={`rounded-md px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm focus:outline-none focus:ring-2 ${
-          walletAddress ? 'bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-500 focus:ring-indigo-600'
-        }`}
+        disabled={isLoading || walletAddress}
+        className={`min-h-[44px] w-full sm:w-auto rounded-md px-4 py-2.5 text-sm font-semibold text-white shadow-sm focus:outline-none focus:ring-2 transition-colors ${
+          walletAddress ? 'bg-green-600' : 'bg-indigo-600 hover:bg-indigo-500 focus:ring-indigo-600'
+        } ${isLoading ? 'opacity-75 cursor-not-allowed' : ''}`}
       >
-        {isConnecting
-          ? 'Connecting...'
-          : walletAddress
-          ? `Connected: ${formatWalletAddress(walletAddress)}`
-          : 'Connect Wallet'}
+        {walletAddress && isCorrectNetwork && (
+          <span className="inline-block w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+        )}
+        {getButtonText()}
       </button>
 
-      {/** Display wallet info and disconnect button if connected */}
-      {walletAddress && (
-        <div className="mt-4">
-          <p className="text-lg font-medium text-gray-500">
-            Wallet Address: {walletAddress}
-          </p>
-          <p className="text-lg font-medium text-gray-500">
-            Network ID: {networkId}
-          </p>
+      {error && (
+        <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-sm text-red-600">{error}</p>
+          <button
+            onClick={() => setError('')}
+            className="mt-2 text-xs text-red-500 hover:text-red-700"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {walletAddress && !isCorrectNetwork && (
+        <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+          <p className="text-sm text-yellow-800">⚠️ Wrong Network</p>
+          <button
+            onClick={() => switchNetwork(BASE_SEPOLIA_PARAMS)}
+            className="mt-2 px-3 py-1 bg-yellow-600 text-white rounded text-xs hover:bg-yellow-700"
+          >
+            Switch to Base Sepolia
+          </button>
+        </div>
+      )}
+
+      {walletAddress && isCorrectNetwork && (
+        <div className="mt-3">
+          <p className="text-xs text-green-600">✅ Connected to Base Sepolia</p>
           <button
             onClick={disconnectWallet}
-            className="mt-2 rounded-md bg-red-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-600"
+            className="mt-2 px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
           >
-            Disconnect Wallet
+            Disconnect
           </button>
         </div>
       )}
