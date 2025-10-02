@@ -79,15 +79,32 @@ export const createEvent = async (eventData) => {
     const ticketPriceWei = ethers.parseEther(eventData.ticketPrice.toString());
     const maxResalePriceWei = ethers.parseEther((eventData.ticketPrice * 3).toString()); // Default 3x
 
+    // Validate required parameters
+    const title = eventData.name || eventData.title || '';
+    const description = eventData.description || '';
+    const location = eventData.venue || eventData.location || '';
+    const metadataURI = eventData.metadataURI || '';
+    const maxTickets = parseInt(eventData.totalTickets || eventData.maxTickets || 100);
+    
+    if (!title || title.length === 0) {
+      throw new Error('Event title is required');
+    }
+    if (maxTickets <= 0 || maxTickets > 10000) {
+      throw new Error('Max tickets must be between 1 and 10000');
+    }
+    if (eventDate <= Math.floor(Date.now() / 1000)) {
+      throw new Error('Event date must be in the future');
+    }
+
     // Create event transaction
     const tx = await factory.createEvent(
-      eventData.name || eventData.title,
-      eventData.description || '',
-      eventData.venue || eventData.location || '',
-      eventData.metadataURI || '',
+      title,
+      description,
+      location,
+      metadataURI,
       eventDate,
       ticketPriceWei,
-      parseInt(eventData.totalTickets || eventData.maxTickets),
+      maxTickets,
       maxResalePriceWei
     );
 
@@ -150,10 +167,13 @@ export const getActiveEvents = async () => {
       forceSync: false // Use cache first, sync in background
     });
     
-    console.log(`Loaded ${events.length} events from hybrid database`);
+    console.log(`Loaded ${events?.length || 0} events from hybrid database`);
+    
+    // Ensure events is an array
+    const eventsArray = Array.isArray(events) ? events : [];
     
     // If no events in database, try blockchain as fallback
-    if (events.length === 0) {
+    if (eventsArray.length === 0) {
       console.log('No events in database, attempting blockchain sync...');
       try {
         const factory = await getEventFactoryContract(false);
@@ -188,7 +208,7 @@ export const getActiveEvents = async () => {
                     description: eventInfo.description || '',
                     location: eventInfo.location || 'Virtual Event',
                     eventDate: Number(eventInfo.eventDate) || Math.floor(Date.now() / 1000),
-                    ticketPrice: eventInfo.ticketPrice?.toString() || '1000000000000000',
+                    ticketPrice: eventInfo.ticketPrice ? ethers.formatEther(eventInfo.ticketPrice) : '0.001',
                     maxTickets: Number(eventInfo.maxTickets) || 100
                   };
                 } catch (detailError) {
@@ -204,14 +224,14 @@ export const getActiveEvents = async () => {
             }
           }
           
-          return blockchainEvents;
+          return Array.isArray(blockchainEvents) ? blockchainEvents : [];
         }
       } catch (blockchainError) {
         console.warn('Blockchain query failed:', blockchainError.message);
       }
     }
     
-    return events;
+    return eventsArray;
   } catch (error) {
     console.error('Error in getActiveEvents:', error);
     return [];
