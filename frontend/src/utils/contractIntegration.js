@@ -68,11 +68,17 @@ export const getEventTicketContract = async (eventContractAddress, needsSigner =
  */
 export const createEvent = async (eventData) => {
   try {
-    // Ensure wallet is connected and on correct network
-    await connectWallet();
-    await switchToBaseSepolia();
+    // Connect wallet once
+    const { provider: walletProvider, signer } = await connectWallet();
+    
+    // Check if we're on the correct network, switch if needed
+    const currentNetwork = await getCurrentNetwork();
+    if (currentNetwork.chainId !== '0x14A34') { // Base Sepolia
+      await switchToBaseSepolia();
+    }
 
-    const factory = await getEventFactoryContract(true);
+    // Get factory contract using existing signer
+    const factory = new ethers.Contract(FACTORY_ADDRESS, EventFactoryABI, signer);
 
     // Convert data to contract format
     const eventDate = Math.floor(new Date(eventData.date).getTime() / 1000);
@@ -195,6 +201,10 @@ export const getActiveEvents = async () => {
                   title: `Event ${i}`,
                   eventDate: Math.floor(Date.now() / 1000),
                   ticketPrice: '1000000000000000', // 0.001 ETH in wei
+                  
+                console.log(`📊 Default event ${i} details:`);
+                console.log('  - Title:', eventDetails.title);
+                console.log('  - Price (wei):', eventDetails.ticketPrice);
                   maxTickets: 100
                 };
                 
@@ -208,9 +218,14 @@ export const getActiveEvents = async () => {
                     description: eventInfo.description || '',
                     location: eventInfo.location || 'Virtual Event',
                     eventDate: Number(eventInfo.eventDate) || Math.floor(Date.now() / 1000),
-                    ticketPrice: eventInfo.ticketPrice ? ethers.formatEther(eventInfo.ticketPrice) : '0.001',
+                    ticketPrice: eventInfo.ticketPrice ? eventInfo.ticketPrice.toString() : '1000000000000000', // Keep in wei format
                     maxTickets: Number(eventInfo.maxTickets) || 100
                   };
+                  
+                  console.log(`📊 Event ${i} details:`);
+                  console.log('  - Title:', eventDetails.title);
+                  console.log('  - Price (wei):', eventDetails.ticketPrice);
+                  console.log('  - Price (ETH):', eventInfo.ticketPrice ? ethers.formatEther(eventInfo.ticketPrice.toString()) : '0.001');
                 } catch (detailError) {
                   console.warn(`Could not fetch details for event ${i}:`, detailError.message);
                 }
@@ -287,11 +302,16 @@ export const getEventDetails = async (eventId) => {
  */
 export const purchaseTicket = async (eventContractAddress, seatNumber, ticketPrice) => {
   try {
-    // Ensure wallet is connected and on correct network
-    await connectWallet();
-    await switchToBaseSepolia();
+    // Connect wallet once
+    const { signer } = await connectWallet();
+    
+    // Check network and switch if needed
+    const currentNetwork = await getCurrentNetwork();
+    if (currentNetwork.chainId !== '0x14A34') {
+      await switchToBaseSepolia();
+    }
 
-    const eventContract = await getEventTicketContract(eventContractAddress, true);
+    const eventContract = new ethers.Contract(eventContractAddress, EventTicketABI, signer);
     const priceWei = ethers.parseEther(ticketPrice.toString());
 
     // Purchase ticket
@@ -356,10 +376,14 @@ export const getAvailableSeats = async (eventContractAddress) => {
  */
 export const listTicketForResale = async (eventContractAddress, tokenId, price) => {
   try {
-    await connectWallet();
-    await switchToBaseSepolia();
+    const { signer } = await connectWallet();
+    
+    const currentNetwork = await getCurrentNetwork();
+    if (currentNetwork.chainId !== '0x14A34') {
+      await switchToBaseSepolia();
+    }
 
-    const eventContract = await getEventTicketContract(eventContractAddress, true);
+    const eventContract = new ethers.Contract(eventContractAddress, EventTicketABI, signer);
     const priceWei = ethers.parseEther(price.toString());
 
     const tx = await eventContract.listForResale(tokenId, priceWei);
@@ -384,10 +408,14 @@ export const listTicketForResale = async (eventContractAddress, tokenId, price) 
  */
 export const buyResaleTicket = async (eventContractAddress, tokenId, price) => {
   try {
-    await connectWallet();
-    await switchToBaseSepolia();
+    const { signer } = await connectWallet();
+    
+    const currentNetwork = await getCurrentNetwork();
+    if (currentNetwork.chainId !== '0x14A34') {
+      await switchToBaseSepolia();
+    }
 
-    const eventContract = await getEventTicketContract(eventContractAddress, true);
+    const eventContract = new ethers.Contract(eventContractAddress, EventTicketABI, signer);
     const priceWei = ethers.parseEther(price.toString());
 
     const tx = await eventContract.buyResaleTicket(tokenId, {
