@@ -28,17 +28,28 @@ const provider = new ethers.JsonRpcProvider(RPC_URL);
  * @returns {Promise<ethers.Contract>} EventFactory contract instance
  */
 export const getEventFactoryContract = async (needsSigner = false) => {
+  console.log('🏢 Getting EventFactory contract...');
+  console.log('  - Factory address:', FACTORY_ADDRESS);
+  console.log('  - Needs signer:', needsSigner);
+  console.log('  - RPC URL:', RPC_URL);
+  
   if (!FACTORY_ADDRESS) {
     throw new Error('EventFactory address not configured. Please set VITE_EVENT_FACTORY_ADDRESS in environment.');
   }
 
   if (needsSigner) {
+    console.log('  🔗 Connecting wallet for signer...');
     const { provider: walletProvider } = await connectWallet();
     const signer = await walletProvider.getSigner();
-    return new ethers.Contract(FACTORY_ADDRESS, EventFactoryABI, signer);
+    const contract = new ethers.Contract(FACTORY_ADDRESS, EventFactoryABI, signer);
+    console.log('  ✅ Factory contract created with signer');
+    return contract;
   }
 
-  return new ethers.Contract(FACTORY_ADDRESS, EventFactoryABI, provider);
+  console.log('  📶 Using read-only provider...');
+  const contract = new ethers.Contract(FACTORY_ADDRESS, EventFactoryABI, provider);
+  console.log('  ✅ Factory contract created with provider');
+  return contract;
 };
 
 /**
@@ -259,36 +270,85 @@ export const getActiveEvents = async () => {
  * @returns {Promise<Object>} Event details
  */
 export const getEventDetails = async (eventId) => {
+  console.log(`🔍 Getting event details for ID: ${eventId}`);
+  
   try {
+    // Validate eventId
+    if (eventId === undefined || eventId === null || isNaN(eventId)) {
+      throw new Error(`Invalid event ID: ${eventId}`);
+    }
+    
+    console.log('  🏢 Getting factory contract...');
     const factory = await getEventFactoryContract(false);
+    
+    console.log('  📊 Checking total events...');
+    const totalEvents = await factory.getTotalEvents();
+    console.log(`  📊 Total events in factory: ${totalEvents}`);
+    
+    if (eventId >= Number(totalEvents)) {
+      throw new Error(`Event ID ${eventId} does not exist. Total events: ${totalEvents}`);
+    }
+    
+    console.log(`  🔍 Fetching event data for ID ${eventId}...`);
+    // The getEvent function returns a struct with: eventContract, organizer, isActive
     const eventData = await factory.getEvent(eventId);
+    console.log('  ✅ Event data fetched:', {
+      eventContract: eventData.eventContract,
+      organizer: eventData.organizer,
+      isActive: eventData.isActive
+    });
     
     // Get additional details from the event contract if needed
     let eventInfo = null;
-    try {
-      const eventContract = await getEventTicketContract(eventData.eventContract, false);
-      eventInfo = await eventContract.eventInfo();
-    } catch (error) {
-      console.warn('Could not fetch detailed event info:', error.message);
+    if (eventData.eventContract && eventData.eventContract !== '0x0000000000000000000000000000000000000000') {
+      try {
+        console.log('  🎫 Getting event contract details...');
+        const eventContract = await getEventTicketContract(eventData.eventContract, false);
+        
+        // Try to get event info - this might not exist in all contracts
+        try {
+          eventInfo = await eventContract.eventInfo();
+          console.log('  ✅ Event info fetched:', eventInfo);
+        } catch (infoError) {
+          console.log('  ⚠️ eventInfo() method not available, using defaults');
+          // Create default event info
+          eventInfo = {
+            title: `Event ${eventId}`,
+            description: 'Blockchain event',
+            location: 'Virtual Event',
+            eventDate: Math.floor(Date.now() / 1000),
+            ticketPrice: ethers.parseEther('0.001'),
+            maxTickets: 100
+          };
+        }
+      } catch (error) {
+        console.warn('  ⚠️ Could not fetch event contract details:', error.message);
+      }
     }
     
-    return {
+    const result = {
       id: eventId,
       contractAddress: eventData.eventContract,
       organizer: eventData.organizer,
       isActive: eventData.isActive,
       // Add event info if available
       ...(eventInfo && {
-        title: eventInfo.title,
-        description: eventInfo.description,
-        location: eventInfo.location,
-        eventDate: new Date(Number(eventInfo.eventDate) * 1000),
-        ticketPrice: ethers.formatEther(eventInfo.ticketPrice),
-        maxTickets: Number(eventInfo.maxTickets)
+        title: eventInfo.title || `Event ${eventId}`,
+        description: eventInfo.description || 'Blockchain event',
+        location: eventInfo.location || 'Virtual Event',
+        eventDate: eventInfo.eventDate ? new Date(Number(eventInfo.eventDate) * 1000) : new Date(),
+        ticketPrice: eventInfo.ticketPrice ? ethers.formatEther(eventInfo.ticketPrice) : '0.001',
+        maxTickets: eventInfo.maxTickets ? Number(eventInfo.maxTickets) : 100
       })
     };
+    
+    console.log('  ✅ Final event details:', result);
+    return result;
+    
   } catch (error) {
-    console.error('Error fetching event details:', error);
+    console.error('❌ Error fetching event details:', error);
+    console.error('Error stack:', error.stack);
+    
     throw new Error(`Failed to fetch event details: ${error.message}`);
   }
 };
