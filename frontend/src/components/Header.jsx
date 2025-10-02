@@ -8,12 +8,16 @@ import {
   setupWalletListeners,
   formatWalletAddress
 } from '../utils/walletUtils';
+import { useEvents } from '../hooks/useHybridDB';
 
 const Header = () => {
   const [walletAddress, setWalletAddress] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Get user's events to check if they've created any
+  const { events } = useEvents({ createdBy: walletAddress });
 
   useEffect(() => {
     setIsVisible(true);
@@ -66,14 +70,29 @@ const Header = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
-  const navLinks = [
+  // Base navigation links
+  const baseNavLinks = [
     { name: 'Home', path: '/' },
-    { name: 'Dashboard', path: '/dashboard'},
-    { name: 'Collections', path: '/collection' },
     { name: 'Explore', path: '/ticketsell' },
     { name: 'Create', path: '/create' },
     { name: 'Waitinglist', path: '/waiting' }
   ];
+
+  // Conditional navigation links
+  const conditionalNavLinks = [];
+  
+  // Show Dashboard if user has created at least one event (temporarily always show for testing)
+  if (true) {
+    conditionalNavLinks.push({ name: 'Dashboard', path: '/dashboard' });
+  }
+  
+  // Show Collections if wallet is connected
+  if (walletAddress) {
+    conditionalNavLinks.push({ name: 'Collections', path: '/collection' });
+  }
+
+  // Combine all navigation links
+  const navLinks = [...baseNavLinks.slice(0, 1), ...conditionalNavLinks, ...baseNavLinks.slice(1)];
 
   return (
     <nav className={`fixed top-0 w-full z-50 transition-all duration-1000 \
