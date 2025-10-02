@@ -201,12 +201,12 @@ export const getActiveEvents = async () => {
                   title: `Event ${i}`,
                   eventDate: Math.floor(Date.now() / 1000),
                   ticketPrice: '1000000000000000', // 0.001 ETH in wei
-                  
+                  maxTickets: 100
+                };
+                
                 console.log(`📊 Default event ${i} details:`);
                 console.log('  - Title:', eventDetails.title);
                 console.log('  - Price (wei):', eventDetails.ticketPrice);
-                  maxTickets: 100
-                };
                 
                 try {
                   const eventContract = await getEventTicketContract(eventData.eventContract, false);
