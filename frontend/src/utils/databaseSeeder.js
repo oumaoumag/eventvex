@@ -16,7 +16,7 @@ export const seedInitialEvents = async (hybridDB) => {
       maxTickets: 500,
       isActive: true,
       createdAt: Math.floor(Date.now() / 1000),
-      metadataURI: 'QmBlockchainSummit2025Metadata',
+      metadataURI: '',
       imageURI: 'QmBlockchainSummit2025Image'
     },
     {
@@ -31,7 +31,7 @@ export const seedInitialEvents = async (hybridDB) => {
       maxTickets: 1000,
       isActive: true,
       createdAt: Math.floor(Date.now() / 1000),
-      metadataURI: 'QmWeb3MusicFestival2025Metadata',
+      metadataURI: '',
       imageURI: 'QmWeb3MusicFestival2025Image'
     },
     {
@@ -46,7 +46,7 @@ export const seedInitialEvents = async (hybridDB) => {
       maxTickets: 300,
       isActive: true,
       createdAt: Math.floor(Date.now() / 1000),
-      metadataURI: 'QmNFTArtExhibition2025Metadata',
+      metadataURI: '',
       imageURI: 'QmNFTArtExhibition2025Image'
     },
     {
@@ -61,7 +61,7 @@ export const seedInitialEvents = async (hybridDB) => {
       maxTickets: 400,
       isActive: true,
       createdAt: Math.floor(Date.now() / 1000),
-      metadataURI: 'QmNairobiTechSummit2025Metadata',
+      metadataURI: '',
       imageURI: 'QmNairobiTechSummit2025Image'
     },
     {
@@ -76,7 +76,7 @@ export const seedInitialEvents = async (hybridDB) => {
       maxTickets: 500,
       isActive: true,
       createdAt: Math.floor(Date.now() / 1000),
-      metadataURI: 'QmSautiSolConcert2025Metadata',
+      metadataURI: '',
       imageURI: 'QmSautiSolConcert2025Image'
     }
   ];
