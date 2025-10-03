@@ -258,7 +258,7 @@ export const getActiveEvents = async () => {
     // Fallback to seeded events if blockchain fails
     if (eventsArray.length === 0) {
       console.log('No events found, this should not happen after seeding...');
-
+    }
     
     return eventsArray;
   } catch (error) {
