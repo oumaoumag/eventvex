@@ -24,6 +24,8 @@ import QuantumTicketResale from './pages/QuantamTicketResale';
 import CreateEvent from './pages/CreateEvent';
 import EventTicketListing from './pages/EventTicketListing';
 import TicketPurchasePage from './pages/TicketPurchasePage';
+import Dashboard from './pages/Dashboard';
+import EventDashboard from './pages/EventDashboard';
 
 // Initialize theme before rendering the app
 const savedTheme = localStorage.getItem('theme');
@@ -114,6 +116,16 @@ const router = createBrowserRouter([
   {
     path: "ticket-purchase",
     element: <Layout><TicketPurchasePage /></Layout>
+  },
+
+  {
+    path: "dashboard",
+    element: <Layout><Dashboard /></Layout>
+  },
+
+  {
+    path: "dashboard/event/:eventId",
+    element: <Layout><EventDashboard /></Layout>
   },
 
   {
