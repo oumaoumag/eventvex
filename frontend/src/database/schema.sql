@@ -28,6 +28,10 @@ CREATE TABLE IF NOT EXISTS events (
     -- IPFS metadata
     metadata_uri TEXT, -- IPFS hash for event metadata
     image_uri TEXT, -- IPFS hash for event image
+    cover_image TEXT, -- Local image path
+    category TEXT DEFAULT 'Technology',
+    host_name TEXT,
+    host_email TEXT
     
     -- Blockchain data
     block_number INTEGER,

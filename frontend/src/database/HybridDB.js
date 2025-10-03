@@ -35,7 +35,7 @@ class HybridDB {
       });
 
       // Check database version and recreate if needed
-      const currentVersion = '1.3';
+      const currentVersion = '1.4';
       const savedVersion = localStorage.getItem('eventvex_db_version');
       const savedDB = localStorage.getItem('eventvex_db');
       const isSeeded = localStorage.getItem('eventvex_db_seeded') === 'true';

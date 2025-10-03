@@ -340,7 +340,7 @@ export const getEventDetails = async (eventId) => {
         description: eventInfo.description || 'Blockchain event',
         location: eventInfo.location || 'Virtual Event',
         eventDate: eventInfo.eventDate ? new Date(Number(eventInfo.eventDate) * 1000) : new Date(),
-        ticketPrice: eventInfo.ticketPrice ? ethers.formatEther(eventInfo.ticketPrice) : '0.001',
+        ticketPrice: eventInfo.ticketPrice ? ethers.formatEther(eventInfo.ticketPrice.toString()) : '0.001',
         maxTickets: eventInfo.maxTickets ? Number(eventInfo.maxTickets) : 100
       })
     };
