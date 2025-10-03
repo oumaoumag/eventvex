@@ -35,20 +35,22 @@ class HybridDB {
       });
 
       // Check database version and recreate if needed
-      const currentVersion = '1.2';
+      const currentVersion = '1.3';
       const savedVersion = localStorage.getItem('eventvex_db_version');
       const savedDB = localStorage.getItem('eventvex_db');
       const isSeeded = localStorage.getItem('eventvex_db_seeded') === 'true';
       
-      if (savedDB && savedVersion === currentVersion && isSeeded) {
+      if (savedDB && savedVersion === currentVersion) {
+        // Always load existing database if version matches
         const uint8Array = new Uint8Array(JSON.parse(savedDB));
         this.db = new SQL.Database(uint8Array);
+        console.log('✅ Loaded existing database from localStorage');
       } else {
-        console.log('Creating new database with updated schema...');
+        console.log('🔄 Creating new database with updated schema...');
         this.db = new SQL.Database();
         await this.createSchema();
         localStorage.setItem('eventvex_db_version', currentVersion);
-        localStorage.setItem('eventvex_db_seeded', 'false');
+        localStorage.removeItem('eventvex_db_seeded'); // Reset seeding flag for new schema
       }
 
       this.isInitialized = true;
@@ -711,7 +713,7 @@ class HybridDB {
       ]);
 
       this.saveDatabase();
-      console.log('Event upserted successfully:', eventId);
+      console.log('✅ Event upserted and saved:', eventId);
     } catch (error) {
       console.error('Failed to upsert event:', error);
       throw error;

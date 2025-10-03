@@ -18,6 +18,8 @@ import Teams from './pages/Teams';
 import Layout from './Layout';
 import './index.css';
 import WaitlistPage from './pages/WaitingList';
+// Import database utilities for development
+import './utils/clearDatabase.js';
 import QuantumTicketResale from './pages/QuantamTicketResale';
 import CreateEvent from './pages/CreateEvent';
 import EventTicketListing from './pages/EventTicketListing';

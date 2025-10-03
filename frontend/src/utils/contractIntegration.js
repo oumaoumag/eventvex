@@ -189,73 +189,76 @@ export const getActiveEvents = async () => {
     // Ensure events is an array
     const eventsArray = Array.isArray(events) ? events : [];
     
-    // If no events in database, try blockchain as fallback
-    if (eventsArray.length === 0) {
-      console.log('No events in database, attempting blockchain sync...');
-      try {
-        const factory = await getEventFactoryContract(false);
-        const totalEvents = await factory.getTotalEvents();
+    // Always check blockchain for new events (not just when database is empty)
+    console.log('🔗 Checking blockchain for events...');
+    try {
+      const factory = await getEventFactoryContract(false);
+      const totalEvents = await factory.getTotalEvents();
+      console.log(`📊 Total events on blockchain: ${totalEvents}`);
+      
+      if (Number(totalEvents) > 0) {
+        const blockchainEvents = [];
+        const maxEvents = Math.min(Number(totalEvents), 20); // Increased limit
         
-        if (Number(totalEvents) > 0) {
-          const blockchainEvents = [];
-          const maxEvents = Math.min(Number(totalEvents), 10);
-          
-          for (let i = 0; i < maxEvents; i++) {
-            try {
-              const eventData = await factory.getEvent(i);
-              if (eventData.isActive) {
-                let eventDetails = {
-                  eventId: i,
-                  eventContract: eventData.eventContract,
-                  organizer: eventData.organizer,
-                  isActive: eventData.isActive,
-                  title: `Event ${i}`,
-                  eventDate: Math.floor(Date.now() / 1000),
-                  ticketPrice: '1000000000000000', // 0.001 ETH in wei
-                  maxTickets: 100
+        for (let i = 0; i < maxEvents; i++) {
+          try {
+            const eventData = await factory.getEvent(i);
+            if (eventData.isActive) {
+              let eventDetails = {
+                eventId: i,
+                eventContract: eventData.eventContract,
+                organizer: eventData.organizer,
+                isActive: eventData.isActive,
+                title: `Blockchain Event ${i}`,
+                eventDate: Math.floor(Date.now() / 1000),
+                ticketPrice: '1000000000000000',
+                maxTickets: 100,
+                category: 'Blockchain',
+                coverImage: '/src/assets/tig.png'
+              };
+              
+              try {
+                const eventContract = await getEventTicketContract(eventData.eventContract, false);
+                const eventInfo = await eventContract.eventInfo();
+                
+                eventDetails = {
+                  ...eventDetails,
+                  title: eventInfo.title || `Blockchain Event ${i}`,
+                  description: eventInfo.description || 'Event created on blockchain',
+                  location: eventInfo.location || 'Virtual Event',
+                  eventDate: Number(eventInfo.eventDate) || Math.floor(Date.now() / 1000),
+                  ticketPrice: eventInfo.ticketPrice ? eventInfo.ticketPrice.toString() : '1000000000000000',
+                  maxTickets: Number(eventInfo.maxTickets) || 100
                 };
                 
-                console.log(`📊 Default event ${i} details:`);
-                console.log('  - Title:', eventDetails.title);
-                console.log('  - Price (wei):', eventDetails.ticketPrice);
-                
-                try {
-                  const eventContract = await getEventTicketContract(eventData.eventContract, false);
-                  const eventInfo = await eventContract.eventInfo();
-                  
-                  eventDetails = {
-                    ...eventDetails,
-                    title: eventInfo.title || `Event ${i}`,
-                    description: eventInfo.description || '',
-                    location: eventInfo.location || 'Virtual Event',
-                    eventDate: Number(eventInfo.eventDate) || Math.floor(Date.now() / 1000),
-                    ticketPrice: eventInfo.ticketPrice ? eventInfo.ticketPrice.toString() : '1000000000000000', // Keep in wei format
-                    maxTickets: Number(eventInfo.maxTickets) || 100
-                  };
-                  
-                  console.log(`📊 Event ${i} details:`);
-                  console.log('  - Title:', eventDetails.title);
-                  console.log('  - Price (wei):', eventDetails.ticketPrice);
-                  console.log('  - Price (ETH):', eventInfo.ticketPrice ? ethers.formatEther(eventInfo.ticketPrice.toString()) : '0.001');
-                } catch (detailError) {
-                  console.warn(`Could not fetch details for event ${i}:`, detailError.message);
-                }
-                
-                // Store in database for future use
-                await hybridDB.upsertEvent(eventDetails);
-                blockchainEvents.push(eventDetails);
+                console.log(`✅ Found blockchain event: ${eventDetails.title}`);
+              } catch (detailError) {
+                console.warn(`Could not fetch details for event ${i}:`, detailError.message);
               }
-            } catch (error) {
-              console.warn(`Failed to fetch event ${i}:`, error.message);
+              
+              // Store in database
+              await hybridDB.upsertEvent(eventDetails);
+              blockchainEvents.push(eventDetails);
             }
+          } catch (error) {
+            console.warn(`Failed to fetch event ${i}:`, error.message);
           }
-          
-          return Array.isArray(blockchainEvents) ? blockchainEvents : [];
         }
-      } catch (blockchainError) {
-        console.warn('Blockchain query failed:', blockchainError.message);
+        
+        console.log(`🎉 Found ${blockchainEvents.length} blockchain events`);
+        
+        // Merge blockchain events with existing events
+        const allEvents = [...eventsArray, ...blockchainEvents];
+        return allEvents;
       }
+    } catch (blockchainError) {
+      console.warn('Blockchain query failed:', blockchainError.message);
     }
+    
+    // Fallback to seeded events if blockchain fails
+    if (eventsArray.length === 0) {
+      console.log('No events found, this should not happen after seeding...');
+
     
     return eventsArray;
   } catch (error) {

@@ -3,6 +3,13 @@
  */
 
 export const seedInitialEvents = async (hybridDB) => {
+  // Check if already seeded
+  const isSeeded = localStorage.getItem('eventvex_db_seeded') === 'true';
+  if (isSeeded) {
+    console.log('🌱 Database already seeded, skipping...');
+    return;
+  }
+
   const initialEvents = [
     {
       eventId: 1,
@@ -17,7 +24,9 @@ export const seedInitialEvents = async (hybridDB) => {
       isActive: true,
       createdAt: Math.floor(Date.now() / 1000),
       metadataURI: '',
-      imageURI: 'QmBlockchainSummit2025Image'
+      imageURI: 'QmBlockchainSummit2025Image',
+      coverImage: '/src/assets/summit.png',
+      category: 'Technology'
     },
     {
       eventId: 2,
@@ -32,7 +41,9 @@ export const seedInitialEvents = async (hybridDB) => {
       isActive: true,
       createdAt: Math.floor(Date.now() / 1000),
       metadataURI: '',
-      imageURI: 'QmWeb3MusicFestival2025Image'
+      imageURI: 'QmWeb3MusicFestival2025Image',
+      coverImage: '/src/assets/concert1.jpg',
+      category: 'Music'
     },
     {
       eventId: 3,
@@ -47,7 +58,9 @@ export const seedInitialEvents = async (hybridDB) => {
       isActive: true,
       createdAt: Math.floor(Date.now() / 1000),
       metadataURI: '',
-      imageURI: 'QmNFTArtExhibition2025Image'
+      imageURI: 'QmNFTArtExhibition2025Image',
+      coverImage: '/src/assets/ast.png',
+      category: 'Art'
     },
     {
       eventId: 7,
@@ -62,7 +75,9 @@ export const seedInitialEvents = async (hybridDB) => {
       isActive: true,
       createdAt: Math.floor(Date.now() / 1000),
       metadataURI: '',
-      imageURI: 'QmNairobiTechSummit2025Image'
+      imageURI: 'QmNairobiTechSummit2025Image',
+      coverImage: '/src/assets/tig.png',
+      category: 'Technology'
     },
     {
       eventId: 8,
@@ -77,16 +92,30 @@ export const seedInitialEvents = async (hybridDB) => {
       isActive: true,
       createdAt: Math.floor(Date.now() / 1000),
       metadataURI: '',
-      imageURI: 'QmSautiSolConcert2025Image'
+      imageURI: 'QmSautiSolConcert2025Image',
+      coverImage: '/src/assets/concert1.jpg',
+      category: 'Music'
     }
   ];
 
+  console.log('🌱 Starting to seed events...');
+  let seedCount = 0;
+  
   for (const event of initialEvents) {
     try {
       await hybridDB.upsertEvent(event);
-      console.log(`Seeded event: ${event.title}`);
+      console.log(`✅ Seeded event: ${event.title}`);
+      seedCount++;
     } catch (error) {
-      console.error(`Failed to seed event ${event.title}:`, error);
+      console.error(`❌ Failed to seed event ${event.title}:`, error);
     }
+  }
+  
+  console.log(`🎉 Finished seeding ${seedCount}/${initialEvents.length} events`);
+  
+  // Mark as seeded only if we successfully seeded events
+  if (seedCount > 0) {
+    localStorage.setItem('eventvex_db_seeded', 'true');
+    console.log('✅ Database marked as seeded');
   }
 };
