@@ -91,8 +91,8 @@ const Header = () => {
   const conditionalNavLinks = [];
   
   // Show Dashboard if user has created at least one event
-  // if (events && events.length > 0) { 
-  if (true) {
+  if (events && events.length > 0) { 
+  // if (true) {
     conditionalNavLinks.push({ name: 'Dashboard', path: '/dashboard', icon: BarChart3 });
   }
   
