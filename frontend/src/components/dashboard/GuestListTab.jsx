@@ -7,11 +7,26 @@ const GuestListTab = ({ eventData }) => {
 
   // Dummy guest data
   const guests = [
-    { id: 1, name: 'John Doe', email: 'john@example.com', phone: '+1234567890', status: 'attended', ticketType: 'VIP' },
-    { id: 2, name: 'Jane Smith', email: 'jane@example.com', phone: '+1234567891', status: 'attended', ticketType: 'Regular' },
-    { id: 3, name: 'Bob Johnson', email: 'bob@example.com', phone: '+1234567892', status: 'no-show', ticketType: 'Regular' },
-    { id: 4, name: 'Alice Brown', email: 'alice@example.com', phone: '+1234567893', status: 'attended', ticketType: 'VIP' },
-    { id: 5, name: 'Charlie Wilson', email: 'charlie@example.com', phone: '+1234567894', status: 'attended', ticketType: 'Regular' }
+    { id: 1, name: 'Wanjiru Kamau', email: 'wanjiru@example.com', phone: '+254712345601', status: 'attended', ticketType: 'VIP' },
+    { id: 2, name: 'Otieno Odhiambo', email: 'otieno@example.com', phone: '+254723456702', status: 'attended', ticketType: 'Regular' },
+    { id: 3, name: 'Amina Hassan', email: 'amina@example.com', phone: '+254734567803', status: 'no-show', ticketType: 'Regular' },
+    { id: 4, name: 'Kipchoge Rotich', email: 'kipchoge@example.com', phone: '+254745678904', status: 'attended', ticketType: 'VIP' },
+    { id: 5, name: 'Njeri Mwangi', email: 'njeri@example.com', phone: '+254756789005', status: 'attended', ticketType: 'Regular' },
+    { id: 6, name: 'Baraka Wekesa', email: 'baraka@example.com', phone: '+254767890106', status: 'attended', ticketType: 'VIP' },
+    { id: 7, name: 'Achieng Onyango', email: 'achieng@example.com', phone: '+254778901207', status: 'no-show', ticketType: 'Regular' },
+    { id: 8, name: 'Mutua Kioko', email: 'mutua@example.com', phone: '+254789012308', status: 'attended', ticketType: 'Regular' },
+    { id: 9, name: 'Fatuma Mohamed', email: 'fatuma@example.com', phone: '+254790123409', status: 'attended', ticketType: 'VIP' },
+    { id: 10, name: 'Kimani Ndungu', email: 'kimani@example.com', phone: '+254701234510', status: 'attended', ticketType: 'Regular' },
+    { id: 11, name: 'Chebet Korir', email: 'chebet@example.com', phone: '+254712345611', status: 'no-show', ticketType: 'VIP' },
+    { id: 12, name: 'Omondi Okello', email: 'omondi@example.com', phone: '+254723456712', status: 'attended', ticketType: 'Regular' },
+    { id: 13, name: 'Wambui Kariuki', email: 'wambui@example.com', phone: '+254734567813', status: 'attended', ticketType: 'VIP' },
+    { id: 14, name: 'Juma Bakari', email: 'juma@example.com', phone: '+254745678914', status: 'attended', ticketType: 'Regular' },
+    { id: 15, name: 'Nekesa Wafula', email: 'nekesa@example.com', phone: '+254756789015', status: 'no-show', ticketType: 'Regular' },
+    { id: 16, name: 'Muthoni Githinji', email: 'muthoni@example.com', phone: '+254767890116', status: 'attended', ticketType: 'VIP' },
+    { id: 17, name: 'Kiplagat Biwott', email: 'kiplagat@example.com', phone: '+254778901217', status: 'attended', ticketType: 'Regular' },
+    { id: 18, name: 'Nyambura Wairimu', email: 'nyambura@example.com', phone: '+254789012318', status: 'attended', ticketType: 'VIP' },
+    { id: 19, name: 'Mwende Mutisya', email: 'mwende@example.com', phone: '+254790123419', status: 'attended', ticketType: 'Regular' },
+    { id: 20, name: 'Adhiambo Auma', email: 'adhiambo@example.com', phone: '+254701234520', status: 'no-show', ticketType: 'VIP' }
   ];
 
   const filteredGuests = guests.filter(guest => {
