@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import MiniAppProvider from './components/MiniAppProvider';
+import MaintenanceWrapper from './components/MaintenanceWrapper';
 import Home from './pages/Home';
 import Discover from './pages/Discover';
 import Testimonials from './pages/Testimonials';
@@ -45,43 +46,43 @@ setTimeout(() => {
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <Layout><Home /></Layout>,
+    element: <MaintenanceWrapper><Layout><Home /></Layout></MaintenanceWrapper>,
   },
   {
     path: "discover",
-    element: <Layout><Discover /></Layout>,
+    element: <MaintenanceWrapper><Layout><Discover /></Layout></MaintenanceWrapper>,
   },
   {
     path: "testimonials",
-    element: <Layout><Testimonials /></Layout>,
+    element: <MaintenanceWrapper><Layout><Testimonials /></Layout></MaintenanceWrapper>,
   },
   {
     path: "qrcode",
-    element: <Layout><Qrcode /></Layout>,
+    element: <MaintenanceWrapper><Layout><Qrcode /></Layout></MaintenanceWrapper>,
   },
   {
     path: "ticket",
-    element: <Layout><Ticket /></Layout>,
+    element: <MaintenanceWrapper><Layout><Ticket /></Layout></MaintenanceWrapper>,
   },
   {
     path: "collection",
-    element: <Layout><Collection /></Layout>,
+    element: <MaintenanceWrapper><Layout><Collection /></Layout></MaintenanceWrapper>,
   },
   {
     path: "teams",
-    element: <Layout><Teams /></Layout>,
+    element: <MaintenanceWrapper><Layout><Teams /></Layout></MaintenanceWrapper>,
   },
   {
     path: "ticketsell",
-    element: <Layout><Ticketsell /></Layout>
+    element: <MaintenanceWrapper><Layout><Ticketsell /></Layout></MaintenanceWrapper>
   },
   {
     path: "hero",
-    element: <Layout><Hero /></Layout>,
+    element: <MaintenanceWrapper><Layout><Hero /></Layout></MaintenanceWrapper>,
   },
   {
     path: "event",
-    element: <Layout><EventList /></Layout>,
+    element: <MaintenanceWrapper><Layout><EventList /></Layout></MaintenanceWrapper>,
   },
   // {
   //   path: "mint",
@@ -90,12 +91,12 @@ const router = createBrowserRouter([
 
   {
     path: "event-details",
-    element: <Layout><EventDetails /></Layout>,
+    element: <MaintenanceWrapper><Layout><EventDetails /></Layout></MaintenanceWrapper>,
   },
 
   {
     path: "create",
-    element: <Layout><CreateEvent /></Layout>,
+    element: <MaintenanceWrapper><Layout><CreateEvent /></Layout></MaintenanceWrapper>,
   },
 
   {
@@ -105,27 +106,27 @@ const router = createBrowserRouter([
 
   {
     path: "resell",
-    element: <Layout><QuantumTicketResale /></Layout>
+    element: <MaintenanceWrapper><Layout><QuantumTicketResale /></Layout></MaintenanceWrapper>
   },
 
   {
     path: "event/:eventId/tickets",
-    element: <Layout><EventTicketListing /></Layout>
+    element: <MaintenanceWrapper><Layout><EventTicketListing /></Layout></MaintenanceWrapper>
   },
 
   {
     path: "ticket-purchase",
-    element: <Layout><TicketPurchasePage /></Layout>
+    element: <MaintenanceWrapper><Layout><TicketPurchasePage /></Layout></MaintenanceWrapper>
   },
 
   {
     path: "dashboard",
-    element: <Layout><Dashboard /></Layout>
+    element: <MaintenanceWrapper><Layout><Dashboard /></Layout></MaintenanceWrapper>
   },
 
   {
     path: "dashboard/event/:eventId",
-    element: <Layout><EventDashboard /></Layout>
+    element: <MaintenanceWrapper><Layout><EventDashboard /></Layout></MaintenanceWrapper>
   },
 
   {
