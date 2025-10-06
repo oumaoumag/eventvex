@@ -20,6 +20,18 @@ import './index.css';
 import WaitlistPage from './pages/WaitingList';
 // Import database utilities for development
 import './utils/clearDatabase.js';
+import './utils/testTicketCreation.js';
+
+// Initialize database on app start
+(async () => {
+  try {
+    const { default: hybridDB } = await import('./database/HybridDB.js');
+    await hybridDB.initialize();
+    console.log('✅ Database initialized on app start');
+  } catch (error) {
+    console.warn('⚠️ Failed to initialize database on app start:', error);
+  }
+})();
 import QuantumTicketResale from './pages/QuantamTicketResale';
 import CreateEvent from './pages/CreateEvent';
 import EventTicketListing from './pages/EventTicketListing';
