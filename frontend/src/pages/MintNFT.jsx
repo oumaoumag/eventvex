@@ -10,6 +10,8 @@ import {
   formatWalletAddress
 } from '../utils/walletUtils';
 import { getActiveEvents } from '../utils/contractIntegration';
+import ImageUpload from '../components/ImageUpload.jsx';
+import { uploadJSONToIPFS } from '../utils/ipfs';
 
 // Note: This component now uses the new EventVex smart contract system
 // For POAP/Badge minting, use the EventTicket contracts from active events
@@ -17,7 +19,9 @@ import { getActiveEvents } from '../utils/contractIntegration';
 const MintNFT = () => {
   const [walletAddress, setWalletAddress] = useState(null);
   const [mintingStatus, setMintingStatus] = useState(null);
-  const [tokenURI, setTokenURI] = useState('');
+  const [nftImage, setNftImage] = useState(null);
+  const [nftName, setNftName] = useState('');
+  const [nftDescription, setNftDescription] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -67,8 +71,13 @@ const MintNFT = () => {
       return;
     }
 
-    if (!tokenURI.trim()) {
-      setError('Please provide a valid token URI');
+    if (!nftImage) {
+      setError('Please upload an image for your NFT');
+      return;
+    }
+
+    if (!nftName.trim()) {
+      setError('Please provide a name for your NFT');
       return;
     }
 
@@ -77,6 +86,32 @@ const MintNFT = () => {
     setMintingStatus('Initializing minting process...');
 
     try {
+      setMintingStatus('Creating NFT metadata...');
+      
+      // Create NFT metadata
+      const metadata = {
+        name: nftName,
+        description: nftDescription,
+        image: `ipfs://${nftImage.hash}`,
+        attributes: [
+          {
+            trait_type: "Created By",
+            value: walletAddress
+          },
+          {
+            trait_type: "Creation Date",
+            value: new Date().toISOString()
+          }
+        ]
+      };
+
+      // Upload metadata to IPFS
+      const metadataResult = await uploadJSONToIPFS(metadata, {
+        name: `${nftName}-metadata.json`
+      });
+
+      const tokenURI = `ipfs://${metadataResult.hash}`;
+
       // Get wallet connection
       const { signer } = await connectWallet();
       const contract = new ethers.Contract(contractAddress, contractABI, signer);
@@ -88,7 +123,9 @@ const MintNFT = () => {
       await transaction.wait();
 
       setMintingStatus('NFT Minted Successfully! 🎉');
-      setTokenURI('');
+      setNftImage(null);
+      setNftName('');
+      setNftDescription('');
     } catch (error) {
       console.error('Error minting NFT:', error);
       setError(error.message || 'Error minting NFT. Please try again.');
@@ -130,19 +167,49 @@ const MintNFT = () => {
             </div>
           )}
 
-          <div className="mb-4 sm:mb-6">
-            <label className="block text-gray-300 text-sm sm:text-base font-medium mb-1 sm:mb-2" htmlFor="tokenURI">
-              Token URI
-            </label>
-            <input
-              type="text"
-              id="tokenURI"
-              className="w-full p-2 sm:p-3 bg-gray-700/50 border border-gray-600 rounded-lg sm:rounded-xl text-white text-sm sm:text-base
-                placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-colors"
-              placeholder="Enter token URI (e.g., ipfs://...)"
-              value={tokenURI}
-              onChange={(e) => setTokenURI(e.target.value)}
-            />
+          <div className="space-y-4 sm:space-y-6 mb-6">
+            <div>
+              <label className="block text-gray-300 text-sm sm:text-base font-medium mb-2">
+                NFT Image
+              </label>
+              <ImageUpload
+                onImageUpload={setNftImage}
+                onError={setError}
+                currentImage={nftImage?.url}
+                placeholder="Upload NFT image"
+                aspectRatio="1/1"
+                className="w-full"
+              />
+            </div>
+
+            <div>
+              <label className="block text-gray-300 text-sm sm:text-base font-medium mb-2" htmlFor="nftName">
+                NFT Name
+              </label>
+              <input
+                type="text"
+                id="nftName"
+                className="w-full p-2 sm:p-3 bg-gray-700/50 border border-gray-600 rounded-lg sm:rounded-xl text-white text-sm sm:text-base
+                  placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-colors"
+                placeholder="Enter NFT name"
+                value={nftName}
+                onChange={(e) => setNftName(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="block text-gray-300 text-sm sm:text-base font-medium mb-2" htmlFor="nftDescription">
+                Description (Optional)
+              </label>
+              <textarea
+                id="nftDescription"
+                className="w-full p-2 sm:p-3 bg-gray-700/50 border border-gray-600 rounded-lg sm:rounded-xl text-white text-sm sm:text-base
+                  placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-colors min-h-[80px]"
+                placeholder="Describe your NFT..."
+                value={nftDescription}
+                onChange={(e) => setNftDescription(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="text-center">
