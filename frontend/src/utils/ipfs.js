@@ -24,55 +24,33 @@ const IPFS_GATEWAYS = [
  * @returns {Promise<{hash: string, url: string}>}
  */
 export const uploadFileToIPFS = async (file, metadata = {}) => {
-  if (!PINATA_JWT && !PINATA_API_KEY) {
-    throw new Error('IPFS configuration missing. Please set Pinata credentials.');
+  if (!PINATA_JWT) {
+    throw new Error('Pinata JWT token is required for file uploads.');
   }
 
   const formData = new FormData();
   formData.append('file', file);
 
-  // Add metadata for better organization
+  // Simplified metadata
   const pinataMetadata = {
-    name: metadata.name || file.name,
-    keyvalues: {
-      type: metadata.type || 'file',
-      eventId: metadata.eventId || '',
-      uploadedAt: new Date().toISOString(),
-      ...metadata.keyvalues
-    }
+    name: metadata.name || file.name
   };
 
   formData.append('pinataMetadata', JSON.stringify(pinataMetadata));
 
-  const pinataOptions = {
-    cidVersion: 1,
-    customPinPolicy: {
-      regions: [
-        { id: 'FRA1', desiredReplicationCount: 1 },
-        { id: 'NYC1', desiredReplicationCount: 1 }
-      ]
-    }
-  };
-
-  formData.append('pinataOptions', JSON.stringify(pinataOptions));
-
   try {
-    const headers = PINATA_JWT 
-      ? { 'Authorization': `Bearer ${PINATA_JWT}` }
-      : { 
-          'pinata_api_key': PINATA_API_KEY,
-          'pinata_secret_api_key': PINATA_SECRET_KEY
-        };
-
     const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
       method: 'POST',
-      headers,
+      headers: {
+        'Authorization': `Bearer ${PINATA_JWT}`
+      },
       body: formData
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(`IPFS upload failed: ${error.error || response.statusText}`);
+      const errorText = await response.text();
+      console.error('Pinata API Error:', errorText);
+      throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
     }
 
     const result = await response.json();
@@ -96,56 +74,31 @@ export const uploadFileToIPFS = async (file, metadata = {}) => {
  * @returns {Promise<{hash: string, url: string}>}
  */
 export const uploadJSONToIPFS = async (jsonData, metadata = {}) => {
-  if (!PINATA_JWT && !PINATA_API_KEY) {
-    throw new Error('IPFS configuration missing. Please set Pinata credentials.');
+  if (!PINATA_JWT) {
+    throw new Error('Pinata JWT token is required for JSON uploads.');
   }
-
-  const pinataMetadata = {
-    name: metadata.name || 'metadata.json',
-    keyvalues: {
-      type: 'metadata',
-      contentType: 'application/json',
-      uploadedAt: new Date().toISOString(),
-      ...metadata.keyvalues
-    }
-  };
-
-  const pinataOptions = {
-    cidVersion: 1,
-    customPinPolicy: {
-      regions: [
-        { id: 'FRA1', desiredReplicationCount: 1 },
-        { id: 'NYC1', desiredReplicationCount: 1 }
-      ]
-    }
-  };
 
   const requestBody = {
     pinataContent: jsonData,
-    pinataMetadata,
-    pinataOptions
+    pinataMetadata: {
+      name: metadata.name || 'metadata.json'
+    }
   };
 
   try {
-    const headers = {
-      'Content-Type': 'application/json',
-      ...(PINATA_JWT 
-        ? { 'Authorization': `Bearer ${PINATA_JWT}` }
-        : { 
-            'pinata_api_key': PINATA_API_KEY,
-            'pinata_secret_api_key': PINATA_SECRET_KEY
-          })
-    };
-
     const response = await fetch('https://api.pinata.cloud/pinning/pinJSONToIPFS', {
       method: 'POST',
-      headers,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${PINATA_JWT}`
+      },
       body: JSON.stringify(requestBody)
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(`IPFS JSON upload failed: ${error.error || response.statusText}`);
+      const errorText = await response.text();
+      console.error('Pinata JSON API Error:', errorText);
+      throw new Error(`JSON upload failed: ${response.status} ${response.statusText}`);
     }
 
     const result = await response.json();
