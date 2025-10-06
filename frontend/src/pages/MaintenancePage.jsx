@@ -103,7 +103,7 @@ const MaintenanceNavbar = () => {
 
             {/* Navigation Links */}
             <div className="flex items-center space-x-4 lg:space-x-8">
-              <Link
+              {/* <Link
                 to="/"
                 className="relative group py-2"
               >
@@ -115,7 +115,7 @@ const MaintenanceNavbar = () => {
                 </div>
                 <span className="absolute bottom-0 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 
                   w-0 left-1/2 group-hover:w-full group-hover:left-0 transition-all duration-300" />
-              </Link>
+              </Link> */}
               
               <Link
                 to="/waiting"

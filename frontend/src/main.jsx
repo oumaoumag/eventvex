@@ -27,6 +27,7 @@ import EventTicketListing from './pages/EventTicketListing';
 import TicketPurchasePage from './pages/TicketPurchasePage';
 import Dashboard from './pages/Dashboard';
 import EventDashboard from './pages/EventDashboard';
+import MaintenancePage from './pages/MaintenancePage';
 
 // Initialize theme before rendering the app
 const savedTheme = localStorage.getItem('theme');
@@ -127,6 +128,11 @@ const router = createBrowserRouter([
   {
     path: "dashboard/event/:eventId",
     element: <MaintenanceWrapper><Layout><EventDashboard /></Layout></MaintenanceWrapper>
+  },
+
+  {
+    path: "maintenance",
+    element: <MaintenancePage />
   },
 
   {
