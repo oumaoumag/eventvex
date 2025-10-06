@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { Wallet, ImageIcon, Sparkles, ChevronRight, Plus, MinusCircle, Loader, AlertCircle } from 'lucide-react';
+import { Wallet, ImageIcon, Sparkles, ChevronRight, Plus, MinusCircle, Loader, AlertCircle, Calendar, MapPin, Users, Tag } from 'lucide-react';
 import { 
   BASE_MAINNET_PARAMS, 
   BASE_SEPOLIA_PARAMS, 
@@ -37,6 +37,12 @@ const Ticket = () => {
   const [totalMinted, setTotalMinted] = useState(0);
   const [maxSupply, setMaxSupply] = useState(10000);
   const [userBalance, setUserBalance] = useState(0);
+  
+  // Tickets States
+  const [tickets, setTickets] = useState([]);
+  const [loadingTickets, setLoadingTickets] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const PRICE_PER_NFT = 0.005; // ETH for Base network
 
@@ -49,19 +55,31 @@ const Ticket = () => {
     "/src/assets/rb1.png",
     "/src/assets/im.png"
   ];
+  
+  const categories = ['all', 'Technology', 'Music', 'Art', 'Finance', 'Gaming', 'Sports', 'Education', 'Business'];
 
   useEffect(() => {
     setIsVisible(true);
     checkWalletConnection();
+    loadTickets();
+    
     if (window.ethereum) {
       window.ethereum.on('accountsChanged', handleAccountsChanged);
       window.ethereum.on('chainChanged', () => window.location.reload());
     }
+    
+    // Listen for new events created
+    const handleEventCreated = () => {
+      loadTickets();
+    };
+    
+    window.addEventListener('eventCreated', handleEventCreated);
 
     return () => {
       if (window.ethereum) {
         window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
       }
+      window.removeEventListener('eventCreated', handleEventCreated);
     };
   }, []);
 
@@ -222,6 +240,59 @@ const Ticket = () => {
   const formatAddress = (address) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
+  
+  const loadTickets = async () => {
+    try {
+      setLoadingTickets(true);
+      const { default: hybridDB } = await import('../database/HybridDB.js');
+      
+      if (!hybridDB.isInitialized) {
+        await hybridDB.initialize();
+      }
+      
+      const ticketData = await hybridDB.getAllTickets({
+        category: selectedCategory === 'all' ? null : selectedCategory,
+        search: searchQuery || null,
+        limit: 50
+      });
+      
+      setTickets(ticketData || []);
+    } catch (error) {
+      console.error('Failed to load tickets:', error);
+      setTickets([]);
+    } finally {
+      setLoadingTickets(false);
+    }
+  };
+  
+  useEffect(() => {
+    loadTickets();
+  }, [selectedCategory, searchQuery]);
+  
+  const formatDate = (timestamp) => {
+    return new Date(timestamp * 1000).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+  
+  const formatPrice = (price) => {
+    try {
+      return `${parseFloat(price).toFixed(3)} ETH`;
+    } catch {
+      return '0.000 ETH';
+    }
+  };
+  
+  const handleTicketPurchase = (ticket) => {
+    // Navigate to ticket purchase page or handle purchase logic
+    console.log('Purchasing ticket:', ticket);
+    // You can implement the actual purchase logic here
+    alert(`Purchasing ticket for ${ticket.event_title}`);
+  };
 
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
@@ -246,196 +317,164 @@ const Ticket = () => {
 
       {/* Main Content */}
       <main className="relative pt-12 sm:pt-16 md:pt-20 px-4 sm:px-6">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           {/* Title Section */}
           <div className={`text-center mb-8 sm:mb-12 md:mb-16 transition-all duration-1000
             ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-20 opacity-0'}`}>
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6">
               <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                Quantum Realm of Ticket Collection
+                Event Tickets Collection
               </span>
             </h1>
             <p className="text-base sm:text-lg md:text-xl text-gray-400 max-w-xs sm:max-w-lg md:max-w-2xl mx-auto">
-              Enter the quantum realm with an exclusive ticket to our unique experience. Each ticket grants you access to a one-of-a-kind event, digitally stored and verified on the blockchain.
+              Discover and purchase tickets for amazing events. Each ticket is a unique digital asset stored securely on the blockchain.
             </p>
           </div>
-
-          {/* Main Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 items-center">
-            {/* Left Side - Preview */}
-            <div className={`transition-all duration-1000 delay-300
-              ${isVisible ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0'}`}>
-              <div className="relative group">
-                {/* Main Preview */}
-                <div className="relative aspect-square rounded-xl sm:rounded-2xl overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-blue-500/20
-                    group-hover:opacity-70 transition-opacity duration-300" />
-                  <img
-                    src={previewImages[selectedPreview] || "/placeholder.svg"}
-                    alt="NFT Preview"
-                    className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
-                  />
-                </div>
-
-                {/* Preview Selector */}
-                <div className="flex space-x-2 sm:space-x-4 mt-4 overflow-x-auto pb-2">
-                  {previewImages.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setSelectedPreview(index)}
-                      className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden flex-shrink-0
-                        ${selectedPreview === index ? 'ring-2 ring-purple-500' : ''}
-                        transition-all duration-300 transform hover:scale-105`}
-                    >
-                      <img
-                        src={previewImages[index] || "/placeholder.svg"}
-                        alt={`Preview ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </button>
-                  ))}
-                </div>
+          
+          {/* Filters */}
+          <div className={`mb-8 transition-all duration-1000 delay-200
+            ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0'}`}>
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+              {/* Search */}
+              <div className="w-full sm:w-auto">
+                <input
+                  type="text"
+                  placeholder="Search events..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full sm:w-80 px-4 py-2 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
               </div>
-            </div>
-
-            {/* Right Side - Minting Interface */}
-            <div className={`mt-8 lg:mt-0 transition-all duration-1000 delay-500
-              ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}`}>
-              <div className="bg-gray-900/50 backdrop-blur-xl rounded-xl sm:rounded-2xl border border-purple-500/30 p-4 sm:p-6 md:p-8">
-                {/* Price Info */}
-                <div className="mb-6 sm:mb-8">
-                  <h2 className="text-xl sm:text-2xl font-bold mb-2">Purchase Your Ticket</h2>
-                  <div className="flex items-baseline space-x-2">
-                    <span className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-purple-400 to-blue-400
-                      bg-clip-text text-transparent">{PRICE_PER_NFT} ETH</span>
-                    <span className="text-sm sm:text-base text-gray-400">per ticket</span>
-                  </div>
-                </div>
-
-                {/* Wallet Connection */}
-                {!isWalletConnected ? (
+              
+              {/* Category Filter */}
+              <div className="flex flex-wrap gap-2">
+                {categories.map((category) => (
                   <button
-                    onClick={connectWallet}
-                    disabled={isLoading}
-                    className="w-full group relative px-4 sm:px-6 py-3 sm:py-4 rounded-xl overflow-hidden mb-4 sm:mb-6 text-sm sm:text-base"
-                    onMouseEnter={() => setIsHovering(true)}
-                    onMouseLeave={() => setIsHovering(false)}
+                    key={category}
+                    onClick={() => setSelectedCategory(category)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                      selectedCategory === category
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
+                    }`}
                   >
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600
-                      group-hover:from-purple-500 group-hover:to-blue-500 transition-colors duration-300" />
-                    <div className="relative z-10 flex items-center justify-center space-x-2">
-                      {isLoading ? (
-                        <Loader className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-                      ) : (
-                        <Wallet className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-300
-                          ${isHovering ? 'rotate-12' : ''}`} />
-                      )}
-                      <span>{isLoading ? 'Connecting...' : 'Connect Wallet'}</span>
-                    </div>
+                    {category === 'all' ? 'All Categories' : category}
                   </button>
-                ) : (
-                  <div className="mb-4 sm:mb-6">
-                    <div className="flex items-center justify-between p-3 sm:p-4 rounded-lg sm:rounded-xl bg-purple-500/10
-                      border border-purple-500/30">
-                      <div className="flex items-center space-x-2">
-                        <Wallet className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
-                        <span className="text-xs sm:text-sm">{formatAddress(walletAddress)}</span>
-                      </div>
-                      <button
-                        className="text-xs sm:text-sm text-purple-400 hover:text-purple-300 transition-colors"
-                        onClick={() => setIsWalletConnected(false)}
-                      >
-                        Disconnect
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Mint Amount Selector */}
-                <div className="mb-6 sm:mb-8">
-                  <label className="block text-xs sm:text-sm text-gray-400 mb-2">Quantity</label>
-                  <div className="flex items-center space-x-3 sm:space-x-4">
-                    <button
-                      onClick={() => setMintCount(Math.max(1, mintCount - 1))}
-                      className="p-1.5 sm:p-2 rounded-lg bg-purple-500/10 hover:bg-purple-500/20
-                        transition-colors duration-300"
-                      disabled={isLoading}
-                    >
-                      <MinusCircle className="w-5 h-5 sm:w-6 sm:h-6" />
-                    </button>
-                    <span className="text-xl sm:text-2xl font-bold w-12 sm:w-16 text-center">{mintCount}</span>
-                    <button
-                      onClick={() => setMintCount(Math.min(10, mintCount + 1))}
-                      className="p-1.5 sm:p-2 rounded-lg bg-purple-500/10 hover:bg-purple-500/20
-                        transition-colors duration-300"
-                      disabled={isLoading}
-                    >
-                      <Plus className="w-5 h-5 sm:w-6 sm:h-6" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Total Price */}
-                <div className="flex justify-between items-center mb-6 sm:mb-8 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-purple-500/10">
-                  <span className="text-sm sm:text-base text-gray-400">Total Price:</span>
-                  <span className="text-xl sm:text-2xl font-bold">
-                    {(0.08 * mintCount).toFixed(2)} ETH
-                  </span>
-                </div>
-
-                {/* Mint Button */}
-                <button
-                  onClick={handleMint}
-                  disabled={!isWalletConnected || isLoading}
-                  className={`w-full group relative px-4 sm:px-6 py-3 sm:py-4 rounded-xl overflow-hidden text-sm sm:text-base
-                    ${!isWalletConnected || isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 opacity-0
-                    group-hover:opacity-50 transition-opacity duration-300" />
-                  <div className="relative z-10 flex items-center justify-center space-x-2">
-                    {isLoading ? (
-                      <Loader className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-                    ) : (
-                      <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
-                    )}
-                    <span>{isLoading ? 'Purchasing...' : 'Buy Now'}</span>
-                  </div>
-                </button>
-
-                {/* Error Display */}
-                {error && (
-                  <div className="mt-4 text-red-500 text-center text-xs sm:text-sm">
-                    <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 inline-block mr-1 sm:mr-2" />
-                    <span className="align-middle">{error}</span>
-                  </div>
-                )}
-
-                {/* Minting Progress */}
-                <div className="mt-4 sm:mt-6 text-center text-xs sm:text-sm text-gray-400">
-                  <div className="mb-2 flex justify-between">
-                    <span>Purchased</span>
-                    <span className="font-bold">2,431 / 10,000</span>
-                  </div>
-                  <div className="w-full h-1.5 sm:h-2 rounded-full bg-purple-500/20 overflow-hidden">
-                    <div className="w-[24.31%] h-full bg-gradient-to-r from-purple-500 to-blue-500
-                      animate-pulse" />
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           </div>
+
+          {/* Tickets Grid */}
+          {loadingTickets ? (
+            <div className="flex justify-center items-center py-20">
+              <Loader className="w-8 h-8 animate-spin text-purple-400" />
+              <span className="ml-3 text-gray-400">Loading tickets...</span>
+            </div>
+          ) : tickets.length === 0 ? (
+            <div className="text-center py-20">
+              <div className="text-6xl mb-4">🎫</div>
+              <h3 className="text-2xl font-bold text-gray-300 mb-2">No Tickets Available</h3>
+              <p className="text-gray-400 mb-6">Create an event to see tickets here!</p>
+              <a
+                href="/create"
+                className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:opacity-90 transition-opacity"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Create Event
+              </a>
+            </div>
+          ) : (
+            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-1000 delay-300
+              ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0'}`}>
+              {tickets.map((ticket, index) => (
+                <div
+                  key={ticket.id || index}
+                  className="bg-gray-900/50 backdrop-blur-xl rounded-xl border border-purple-500/30 overflow-hidden group hover:border-purple-400/50 transition-all duration-300 transform hover:scale-105"
+                >
+                  {/* Ticket Image */}
+                  <div className="relative aspect-video overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-blue-500/20 group-hover:opacity-70 transition-opacity duration-300" />
+                    <img
+                      src={ticket.image_url || ticket.cover_image || '/src/assets/tig.png'}
+                      alt={ticket.event_title}
+                      className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500"
+                      onError={(e) => {
+                        e.target.src = '/src/assets/tig.png';
+                      }}
+                    />
+                    
+                    {/* Category Badge */}
+                    <div className="absolute top-3 left-3">
+                      <span className="px-2 py-1 bg-purple-600/80 backdrop-blur-sm text-white text-xs rounded-full">
+                        {ticket.category || 'Technology'}
+                      </span>
+                    </div>
+                    
+                    {/* Price Badge */}
+                    <div className="absolute top-3 right-3">
+                      <span className="px-2 py-1 bg-black/80 backdrop-blur-sm text-white text-xs rounded-full font-bold">
+                        {formatPrice(ticket.ticket_price)}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Ticket Content */}
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold text-white mb-2 line-clamp-2">
+                      {ticket.event_title}
+                    </h3>
+                    
+                    {ticket.description && (
+                      <p className="text-gray-400 text-sm mb-4 line-clamp-2">
+                        {ticket.description}
+                      </p>
+                    )}
+                    
+                    {/* Event Details */}
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center text-gray-300 text-sm">
+                        <Calendar className="w-4 h-4 mr-2 text-purple-400" />
+                        <span>{formatDate(ticket.event_date)}</span>
+                      </div>
+                      
+                      {ticket.location && (
+                        <div className="flex items-center text-gray-300 text-sm">
+                          <MapPin className="w-4 h-4 mr-2 text-purple-400" />
+                          <span className="truncate">{ticket.location}</span>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center text-gray-300 text-sm">
+                        <Users className="w-4 h-4 mr-2 text-purple-400" />
+                        <span>{ticket.max_tickets} tickets available</span>
+                      </div>
+                    </div>
+                    
+                    {/* Purchase Button */}
+                    <button
+                      onClick={() => handleTicketPurchase(ticket)}
+                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:opacity-90 transition-all duration-300 transform hover:scale-105 flex items-center justify-center space-x-2"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>Purchase Ticket</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </main>
 
       {/* Collection Stats */}
       <section className="mt-12 sm:mt-16 md:mt-20 px-4 sm:px-6">
-        <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
           {[
-            { label: "Total Items", value: "10,000" },
-            { label: "Owners", value: "1,823" },
-            { label: "Floor Price", value: "0.08 ETH" },
-            { label: "Volume Traded", value: "1,205 ETH" }
+            { label: "Available Tickets", value: tickets.length.toString() },
+            { label: "Categories", value: new Set(tickets.map(t => t.category)).size.toString() },
+            { label: "Avg Price", value: tickets.length > 0 ? `${(tickets.reduce((sum, t) => sum + parseFloat(t.ticket_price || 0), 0) / tickets.length).toFixed(3)} ETH` : "0.000 ETH" },
+            { label: "Total Events", value: new Set(tickets.map(t => t.event_id)).size.toString() }
           ].map((stat, index) => (
             <div
               key={index}
@@ -454,8 +493,6 @@ const Ticket = () => {
         </div>
       </section>
     </div>
-
-
   );
 };
 

@@ -192,7 +192,7 @@ class HybridDB {
    */
   async getUserTickets(walletAddress, forceSync = false) {
     const query = `
-      SELECT t.*, e.title as event_title, e.event_date, e.location, e.image_uri
+      SELECT t.*, e.title as event_title, e.event_date, e.location, e.image_uri, e.cover_image
       FROM tickets t
       JOIN events e ON t.event_id = e.event_id
       WHERE t.owner_address = ?
@@ -205,6 +205,56 @@ class HybridDB {
 
     if (forceSync || this.shouldSync('tickets', walletAddress)) {
       this.queueSync('tickets', 'fetch_user', { walletAddress });
+    }
+
+    return await this.enhanceWithIPFS(results, 'ticket');
+  }
+
+  /**
+   * Get all available tickets
+   */
+  async getAllTickets(options = {}) {
+    const {
+      limit = 50,
+      offset = 0,
+      category = null,
+      search = null
+    } = options;
+
+    let query = `
+      SELECT t.*, e.title as event_title, e.description, e.event_date, e.location, 
+             e.cover_image, e.category, e.organizer_address, e.ticket_price, e.max_tickets
+      FROM tickets t
+      JOIN events e ON t.event_id = e.event_id
+      WHERE e.is_active = 1 AND e.is_cancelled = 0
+    `;
+    const params = [];
+
+    if (category) {
+      query += ` AND e.category = ?`;
+      params.push(category);
+    }
+
+    if (search) {
+      query += ` AND (e.title LIKE ? OR e.description LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    query += ` ORDER BY e.event_date DESC LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
+
+    const execResult = this.db.exec(query, params);
+    let results = [];
+    
+    if (execResult.length > 0 && execResult[0].values) {
+      const columns = execResult[0].columns;
+      results = execResult[0].values.map(row => {
+        const obj = {};
+        columns.forEach((col, index) => {
+          obj[col] = row[index];
+        });
+        return obj;
+      });
     }
 
     return await this.enhanceWithIPFS(results, 'ticket');
@@ -386,15 +436,21 @@ class HybridDB {
     const enhanced = await Promise.all(items.map(async (item) => {
       const enhanced = { ...item };
       
-      console.log(`🖼️ Processing image for ${item.title}:`);
+      console.log(`🖼️ Processing image for ${item.title || item.event_title}:`);
       console.log('  - cover_image:', item.cover_image);
       console.log('  - image_uri:', item.image_uri);
       
       // Load metadata from IPFS if available
       if (item.metadata_uri) {
-        const metadata = await this.cacheIPFSContent(item.metadata_uri, 'metadata');
-        if (metadata) {
-          enhanced.metadata = metadata;
+        try {
+          const metadata = typeof item.metadata_uri === 'string' 
+            ? JSON.parse(item.metadata_uri)
+            : await this.cacheIPFSContent(item.metadata_uri, 'metadata');
+          if (metadata) {
+            enhanced.metadata = metadata;
+          }
+        } catch (error) {
+          console.warn('Failed to parse metadata:', error);
         }
       }
       
@@ -716,6 +772,69 @@ class HybridDB {
       console.log('✅ Event upserted and saved:', eventId);
     } catch (error) {
       console.error('Failed to upsert event:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a ticket entry for an event
+   */
+  async createTicketForEvent(eventData) {
+    console.log('Creating ticket for event:', eventData);
+    
+    const {
+      eventId,
+      eventContract,
+      eventTitle,
+      eventDescription,
+      eventLocation,
+      eventDate,
+      ticketPrice,
+      maxTickets,
+      coverImage,
+      category,
+      organizer
+    } = eventData;
+
+    try {
+      // Create a ticket template for this event
+      const ticketId = `ticket_${eventId}_${Date.now()}`;
+      
+      this.db.run(`
+        INSERT OR REPLACE INTO tickets
+        (token_id, event_id, contract_address, owner_address, original_owner,
+         purchase_price, purchase_time, is_used, is_for_resale, metadata_uri,
+         created_at, last_synced, sync_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?, strftime('%s', 'now'), strftime('%s', 'now'), 'synced')
+      `, [
+        0, // token_id - will be updated when actually minted
+        eventId,
+        eventContract || '',
+        organizer, // Initially owned by organizer
+        organizer,
+        ticketPrice || '0',
+        Math.floor(Date.now() / 1000),
+        JSON.stringify({
+          name: `${eventTitle} - Ticket`,
+          description: eventDescription || `Ticket for ${eventTitle}`,
+          image: coverImage || null,
+          attributes: [
+            { trait_type: 'Event', value: eventTitle },
+            { trait_type: 'Location', value: eventLocation },
+            { trait_type: 'Date', value: new Date(eventDate * 1000).toISOString() },
+            { trait_type: 'Category', value: category },
+            { trait_type: 'Max Supply', value: maxTickets.toString() }
+          ]
+        })
+      ]);
+
+      this.saveDatabase();
+      console.log('✅ Ticket created for event:', eventId);
+      
+      // Emit event for UI updates
+      this.emit('ticket_created', { eventId, ticketId });
+    } catch (error) {
+      console.error('Failed to create ticket for event:', error);
       throw error;
     }
   }
