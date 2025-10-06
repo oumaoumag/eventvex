@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 import { ChevronDown, ChevronUp, Ticket, Award, Users, Calendar, MapPin, DollarSign, Hash } from 'lucide-react';
 import { createEvent, validateContractConfig } from '../utils/contractIntegration.js';
 import { connectWallet, checkWalletConnection } from '../utils/walletUtils.js';
+import ImageUpload from '../components/ImageUpload.jsx';
 
 const CreateEvent = () => {
   const [account, setAccount] = useState('');
@@ -34,7 +35,7 @@ const CreateEvent = () => {
     requireApproval: false,
     category: 'Technology',
     tags: '',
-    coverImage: '',
+    coverImage: null,
     hostName: '',
     hostEmail: '',
     hostBio: '',
@@ -51,7 +52,7 @@ const CreateEvent = () => {
     enabled: false,
     name: '',
     description: '',
-    image: '',
+    image: null,
     eventUrl: '',
     city: '',
     country: '',
@@ -65,7 +66,7 @@ const CreateEvent = () => {
     enabled: false,
     name: '',
     description: '',
-    image: '',
+    image: null,
     criteria: '',
     validUntil: ''
   });
@@ -184,22 +185,45 @@ const CreateEvent = () => {
         // await createAttendanceBadge(badgeData);
       }
 
-      alert(`Event created successfully! Event ID: ${result.eventId}. Contract: ${result.eventContract}. ${poapData.enabled ? 'POAP ' : ''}${badgeData.enabled ? 'and attendance badges ' : ''}${(poapData.enabled || badgeData.enabled) ? 'will be available for attendees.' : ''}`);
+      alert(`Event created successfully! Event ID: ${result.eventId}. Contract: ${result.eventContract}. Ticket automatically created and available in the Tickets page. ${poapData.enabled ? 'POAP ' : ''}${badgeData.enabled ? 'and attendance badges ' : ''}${(poapData.enabled || badgeData.enabled) ? 'will be available for attendees.' : ''}`);
 
       // Update hybrid database and notify components
       try {
         const { default: hybridDB } = await import('../database/HybridDB.js');
         if (hybridDB.isInitialized) {
-          await hybridDB.upsertEvent({
+          const eventRecord = {
             eventId: result.eventId,
             eventContract: result.eventContract,
             organizer: account,
             title: eventData.name,
-            eventDate: Math.floor(new Date(eventData.date).getTime() / 1000),
+            description: eventData.description,
+            location: eventData.isVirtual ? eventData.virtualLink : eventData.location,
+            eventDate: Math.floor(new Date(eventData.startDate).getTime() / 1000),
             ticketPrice: ethers.parseEther(eventData.ticketPrice.toString()),
-            maxTickets: parseInt(eventData.totalTickets),
+            maxTickets: eventData.capacity === 'unlimited' ? 10000 : parseInt(eventData.totalTickets),
             isActive: true,
-            createdAt: Math.floor(Date.now() / 1000)
+            createdAt: Math.floor(Date.now() / 1000),
+            coverImage: eventData.coverImage?.url || null,
+            category: eventData.category,
+            hostName: eventData.hostName,
+            hostEmail: eventData.hostEmail
+          };
+          
+          await hybridDB.upsertEvent(eventRecord);
+          
+          // Automatically create a ticket for this event
+          await hybridDB.createTicketForEvent({
+            eventId: result.eventId,
+            eventContract: result.eventContract,
+            eventTitle: eventData.name,
+            eventDescription: eventData.description,
+            eventLocation: eventData.isVirtual ? eventData.virtualLink : eventData.location,
+            eventDate: Math.floor(new Date(eventData.startDate).getTime() / 1000),
+            ticketPrice: eventData.ticketPrice,
+            maxTickets: eventData.capacity === 'unlimited' ? 10000 : parseInt(eventData.totalTickets),
+            coverImage: eventData.coverImage?.url || null,
+            category: eventData.category,
+            organizer: account
           });
         }
       } catch (dbError) {
@@ -222,11 +246,11 @@ const CreateEvent = () => {
         name: '', description: '', startDate: '', startTime: '', endDate: '', endTime: '',
         timezone: 'GMT+03:00', location: '', isVirtual: false, virtualLink: '',
         ticketPrice: '', totalTickets: '', capacity: 'unlimited', requireApproval: false,
-        category: 'Technology', tags: '', coverImage: '', hostName: '', hostEmail: '',
+        category: 'Technology', tags: '', coverImage: null, hostName: '', hostEmail: '',
         hostBio: '', eventWebsite: '', socialLinks: { twitter: '', linkedin: '', instagram: '' }
       });
-      setPoapData({ enabled: false, name: '', description: '', image: '', eventUrl: '', city: '', country: '', startDate: '', endDate: '', expiryDate: '' });
-      setBadgeData({ enabled: false, name: '', description: '', image: '', criteria: '', validUntil: '' });
+      setPoapData({ enabled: false, name: '', description: '', image: null, eventUrl: '', city: '', country: '', startDate: '', endDate: '', expiryDate: '' });
+      setBadgeData({ enabled: false, name: '', description: '', image: null, criteria: '', validUntil: '' });
 
     } catch (error) {
       console.error('Error creating event:', error);
@@ -453,40 +477,39 @@ const CreateEvent = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="block text-gray-300 font-semibold mb-2">
-                      Category
-                    </label>
-                    <select
-                      name="category"
-                      value={eventData.category}
-                      onChange={handleChange}
-                      className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
-                    >
-                      <option value="Technology">Technology</option>
-                      <option value="Music">Music</option>
-                      <option value="Art">Art</option>
-                      <option value="Finance">Finance</option>
-                      <option value="Gaming">Gaming</option>
-                      <option value="Sports">Sports</option>
-                      <option value="Education">Education</option>
-                      <option value="Business">Business</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-gray-300 font-semibold mb-2">
-                      Cover Image URL
-                    </label>
-                    <input
-                      type="url"
-                      name="coverImage"
-                      value={eventData.coverImage}
-                      onChange={handleChange}
-                      className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500"
-                      placeholder="https://example.com/image.jpg"
-                    />
-                  </div>
+                <div className="mb-4">
+                  <label className="block text-gray-300 font-semibold mb-2">
+                    Category
+                  </label>
+                  <select
+                    name="category"
+                    value={eventData.category}
+                    onChange={handleChange}
+                    className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="Technology">Technology</option>
+                    <option value="Music">Music</option>
+                    <option value="Art">Art</option>
+                    <option value="Finance">Finance</option>
+                    <option value="Gaming">Gaming</option>
+                    <option value="Sports">Sports</option>
+                    <option value="Education">Education</option>
+                    <option value="Business">Business</option>
+                  </select>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-gray-300 font-semibold mb-2">
+                    Cover Image
+                  </label>
+                  <ImageUpload
+                    onImageUpload={(result) => setEventData({...eventData, coverImage: result})}
+                    onError={(error) => console.error('Image upload error:', error)}
+                    currentImage={eventData.coverImage?.url}
+                    placeholder="Upload event cover image"
+                    aspectRatio="16/9"
+                    className="w-full"
+                  />
                 </div>
 
                 <div className="mb-4">
@@ -624,17 +647,16 @@ const CreateEvent = () => {
                     </div>
 
                     <div>
-                      <label className="block text-gray-300 font-semibold mb-2" htmlFor="poapImage">
-                        POAP Image URL
+                      <label className="block text-gray-300 font-semibold mb-2">
+                        POAP Image
                       </label>
-                      <input
-                        type="url"
-                        id="poapImage"
-                        name="image"
-                        value={poapData.image}
-                        onChange={handlePoapChange}
-                        className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                        placeholder="https://example.com/poap-image.png"
+                      <ImageUpload
+                        onImageUpload={(result) => setPoapData({...poapData, image: result})}
+                        onError={(error) => console.error('POAP image upload error:', error)}
+                        currentImage={poapData.image?.url}
+                        placeholder="Upload POAP image"
+                        aspectRatio="1/1"
+                        className="w-full"
                       />
                     </div>
                   </>
@@ -735,17 +757,16 @@ const CreateEvent = () => {
                     </div>
 
                     <div>
-                      <label className="block text-gray-300 font-semibold mb-2" htmlFor="badgeImage">
-                        Badge Image URL
+                      <label className="block text-gray-300 font-semibold mb-2">
+                        Badge Image
                       </label>
-                      <input
-                        type="url"
-                        id="badgeImage"
-                        name="image"
-                        value={badgeData.image}
-                        onChange={handleBadgeChange}
-                        className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="https://example.com/badge-image.png"
+                      <ImageUpload
+                        onImageUpload={(result) => setBadgeData({...badgeData, image: result})}
+                        onError={(error) => console.error('Badge image upload error:', error)}
+                        currentImage={badgeData.image?.url}
+                        placeholder="Upload badge image"
+                        aspectRatio="1/1"
+                        className="w-full"
                       />
                     </div>
                   </>
