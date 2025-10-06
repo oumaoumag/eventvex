@@ -147,15 +147,23 @@ const MaintenanceFooter = () => {
             © 2025 EventVerse. All rights reserved.
           </p>
           <div className="flex space-x-4">
-            {[Twitter, Instagram, Linkedin, Github].map((Icon, index) => (
-              <button
+            {[
+              { Icon: Twitter, link: "https://x.com/event_verse_app" },
+              { Icon: Instagram, link: "#" },
+              { Icon: Linkedin, link: "#" },
+              { Icon: Github, link: "#" }
+            ].map(({ Icon, link }, index) => (
+              <a
                 key={index}
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="group relative p-2"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg
                   opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300" />
                 <Icon className="w-4 h-4 relative z-10 text-gray-400 group-hover:text-white transition-colors" />
-              </button>
+              </a>
             ))}
           </div>
         </div>
@@ -238,15 +246,23 @@ const MaintenancePage = () => {
 
             {/* Social Media Icons */}
             <div className="flex justify-center lg:justify-start space-x-4">
-              {[Twitter, Instagram, Linkedin, Github].map((Icon, index) => (
-                <button
+              {[
+                { Icon: Twitter, link: "https://x.com/event_verse_app" },
+                { Icon: Instagram, link: "#" },
+                { Icon: Linkedin, link: "#" },
+                { Icon: Github, link: "#" }
+              ].map(({ Icon, link }, index) => (
+                <a
                   key={index}
+                  href={link}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="group relative p-2"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg
                     opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300" />
                   <Icon className="w-5 h-5 relative z-10 text-gray-400 group-hover:text-white transition-colors" />
-                </button>
+                </a>
               ))}
             </div>
           </div>
